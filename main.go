@@ -21,10 +21,15 @@ import (
 var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
 var conn *websocket.Conn
 var err error
-var metadatalist []*ContractMetadata
+
+var metaDataList []*ContractMetadata
+var newOrderList []NewOrderCancelUpdateStatus
+var cancelOrderList []NewOrderCancelUpdateStatus
+var updateOrderList []NewOrderCancelUpdateStatus
 
 var chanLogon = make(chan *ServerMsg)
 var chanInformationReport= make(chan *ServerMsg)
+var chanOrderSubscription = make (chan *ServerMsg)
 
 func main() {
 	flag.Parse()
@@ -43,8 +48,9 @@ func main() {
 	go RecvMessage()
 
 	SendLogonMessage("VTechapi", "pass", "WebApiTest", "java-client")
-	CQG_InformationRequest("ENQU7", 1)
-	CQG_NewOrderRequest(1,16958204,1, xid.New().String(),2, 5900,2,1,1,false, makeTimestamp() )
+
+	CQG_InformationRequest("BZU7", 1)
+	CQG_NewOrderRequest(1,16958204,1, xid.New().String(),2, 4700,2,1,1,false, makeTimestamp() )
 	//CQG_CancelOrderRequest(1,"799143186",16958204,"370da065-d10d-4041-8078-0bf629b87b5a",xid.New().String(),makeTimestamp())
 
 	//CQG_PositionSubscription(hash(xid.New().String()),true)
@@ -65,6 +71,7 @@ func CQG_OrderSubscription(id uint32, subscribe bool){
 		},
 	}
 	SendMessage(clientMsg)
+	_ = <- chanOrderSubscription
 }
 func CQG_PositionSubscription(id uint32, subscribe bool){
 	var arr []uint32
@@ -183,9 +190,9 @@ func SendLogonMessage(username string, password string, clientAppID string, clie
 
 	SendMessage(LogonMessage)
 	msg:= <- chanLogon
-	fmt.Println("rachel")
 	if msg.LogonResult.GetResultCode() == 0  {
 		fmt.Printf("Logon Successfully!!! Let's make America great again \n")
+		CQG_OrderSubscription(hash(xid.New().String()),true)
 	} else {
 		fmt.Printf("Logon failed !! It's Obama's fault \n")
 	}
@@ -217,14 +224,13 @@ func RecvMessage(){
 				//fmt.Println(md.GetField()[i].GetName())
 				switch md.GetField()[i].GetName(){
 				case "logon_result":
-					fmt.Println("hello")
 					chanLogon <- msg
 				case "logged_off":
 
 				case "information_report":
 					if (msg.GetInformationReport()[0].GetStatusCode() == 0 ) {
 						metadata := msg.GetInformationReport()[0].GetSymbolResolutionReport().GetContractMetadata()
-						metadatalist = append(metadatalist, metadata)
+						metaDataList = append(metaDataList, metadata)
 						chanInformationReport <- msg
 					}else {
 						fmt.Println("Error Information Request")
@@ -232,12 +238,71 @@ func RecvMessage(){
 				case "position_status":
 					fmt.Printf("Number of position: ")
 					fmt.Println(len(msg.GetPositionStatus()))
-					saveMetaData(msg)
 
 				case "order_status":
-					saveMetaData(msg)
+					for _, orderStatus := range msg.GetOrderStatus(){
+
+						if(orderStatus.GetIsSnapshot() == false){ //Fill Update
+							clorID :=orderStatus.GetOrder().GetClOrderId()
+
+							switch orderStatus.GetTransactionStatus()[0].GetStatus(){
+							case TransactionStatus_REJECTED:
+								for _, noq := range newOrderList{
+									if(noq.clorID == clorID){
+										noq.status ="rejected"
+										noq.channel <- noq
+									}
+								}
+							case TransactionStatus_ACK_PLACE:
+								for _, noq := range newOrderList{
+									if(noq.clorID == clorID){
+										noq.status ="ok"
+										noq.channel <- noq
+									}
+								}
+							case TransactionStatus_ACK_CANCEL:
+								for _, coq := range cancelOrderList{
+									if(coq.clorID == clorID){
+										coq.status ="ok"
+										coq.channel <- coq
+									}
+								}
+							case TransactionStatus_REJECT_CANCEL:
+								for _, coq := range cancelOrderList{
+									if(coq.clorID == clorID){
+										coq.status ="rejected"
+										coq.channel <- coq
+									}
+								}
+							case TransactionStatus_ACK_MODIFY:
+								for _, moq := range updateOrderList{
+									if(moq.clorID == clorID){
+										moq.status ="ok"
+										moq.channel <- moq
+									}
+								}
+							case TransactionStatus_REJECT_MODIFY:
+								for _, moq := range updateOrderList{
+									if(moq.clorID == clorID){
+										moq.status ="rejected"
+										moq.channel <- moq
+									}
+								}
+							}
+						} else { //Trade subscription snapshot
+
+						}
+
+
+						//Save contractMetadata
+						for _, contractMetadata := range orderStatus.GetContractMetadata(){
+							metaDataList = append(metaDataList, contractMetadata)
+							fmt.Println("save metadata")
+						}
+					}
 				case "trade_subscription_status":
 				case "trade_snapshot_completion":
+					chanOrderSubscription <- msg
 				}
 			}
 		}
@@ -254,13 +319,6 @@ func RecvMessageOne()(msg *ServerMsg){
 	fmt.Printf("recv: %s \n", msg)
 	return msg
 }
-func saveMetaData(msg *ServerMsg){
-	for _, orderStatus := range msg.GetOrderStatus(){
-		for _, contractMetadata := range orderStatus.GetContractMetadata(){
-			metadatalist = append(metadatalist, contractMetadata)
-		}
-	}
-}
 func makeTimestamp() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
@@ -268,5 +326,34 @@ func hash(s string) uint32 {
 	h := fnv.New32a()
 	h.Write([]byte(s))
 	return h.Sum32()
+}
+
+type User struct {
+	account string
+	accountID string
+	workingOrderList []WorkingOrder
+}
+
+type WorkingOrder struct{
+	orderID         string // Used to cancel order or request order status later
+	clorID 			string
+	price           string
+	ordStatus       string
+	quantity        string
+	symbol          string
+	productMaturity string
+	exchange 		string
+	productType     string
+	side            string
+	sideNum			string
+	ordType 		string
+	timeInForce 	string
+	contractID		string
+}
+
+type NewOrderCancelUpdateStatus struct{
+	clorID 			string
+	status 			string
+	channel         chan NewOrderCancelUpdateStatus
 }
 
