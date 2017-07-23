@@ -854,7 +854,7 @@ type ContractMetadata_MarginStyle int32
 const (
 	// The premium is paid on exercise/ expiry (position is included to OTE calculation).
 	ContractMetadata_FUTURE ContractMetadata_MarginStyle = 1
-	// Premium is subtracted from account balance when order is filled (position is included to MVO/UPL calculation).
+	// Premium is subtracted from username balance when order is filled (position is included to MVO/UPL calculation).
 	ContractMetadata_PREMIUM ContractMetadata_MarginStyle = 2
 )
 
@@ -1001,7 +1001,7 @@ func (TradeSubscription_SubscriptionScope) EnumDescriptor() ([]byte, []int) {
 type TradeSubscription_PublicationType int32
 
 const (
-	// Subscribe to a single account.
+	// Subscribe to a single username.
 	TradeSubscription_ACCOUNT TradeSubscription_PublicationType = 1
 	// Subscribe to all accounts of a specific sales series.
 	TradeSubscription_SALES_SERIES TradeSubscription_PublicationType = 2
@@ -2763,7 +2763,7 @@ type ClientMsg struct {
 	//    Any subscription that leads to exceeding this limit is failed.
 	TradeSubscription []*TradeSubscription `protobuf:"bytes,2,rep,name=trade_subscription,json=tradeSubscription" json:"trade_subscription,omitempty"`
 	// Order requests.
-	// Requests rate is limited, 300 orders per 10 seconds per account by default.
+	// Requests rate is limited, 300 orders per 10 seconds per username by default.
 	OrderRequest []*OrderRequest `protobuf:"bytes,3,rep,name=order_request,json=orderRequest" json:"order_request,omitempty"`
 	// Market data subscriptions from client.
 	// Subscriptions number is limited, 200 simultaneous subscriptions by default.
@@ -5418,8 +5418,8 @@ func (m *AccountsRequest) String() string            { return proto.CompactTextS
 func (*AccountsRequest) ProtoMessage()               {}
 func (*AccountsRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{39} }
 
-// Response with a list of authorized accounts grouped by brokerage firms and internal sales series (account groups),
-// the same account can not belong to more than one account group.
+// Response with a list of authorized accounts grouped by brokerage firms and internal sales series (username groups),
+// the same username can not belong to more than one username group.
 type AccountsReport struct {
 	// List or brokerages with accounts the user works with.
 	Brokerage        []*Brokerage `protobuf:"bytes,1,rep,name=brokerage" json:"brokerage,omitempty"`
@@ -5482,7 +5482,7 @@ type SalesSeries struct {
 	// Sales series name.
 	Name *string `protobuf:"bytes,2,req,name=name" json:"name,omitempty"`
 	// List of accounts.
-	Account          []*Account `protobuf:"bytes,3,rep,name=account" json:"account,omitempty"`
+	Account          []*Account `protobuf:"bytes,3,rep,name=username" json:"username,omitempty"`
 	XXX_unrecognized []byte     `json:"-"`
 }
 
@@ -5512,7 +5512,7 @@ func (m *SalesSeries) GetAccount() []*Account {
 	return nil
 }
 
-// Trade routing account data.
+// Trade routing username data.
 type Account struct {
 	// Account ID in CQG trade routing system.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
@@ -5520,14 +5520,14 @@ type Account struct {
 	BrokerageAccountId *string `protobuf:"bytes,2,req,name=brokerage_account_id,json=brokerageAccountId" json:"brokerage_account_id,omitempty"`
 	// Account name in CQG trade routing system.
 	Name *string `protobuf:"bytes,3,req,name=name" json:"name,omitempty"`
-	// Last statement date for this account
+	// Last statement date for this username
 	// (brokerage local date in time format, use date part only).
 	LastStatementDate *int64 `protobuf:"zigzag64,4,req,name=last_statement_date,json=lastStatementDate" json:"last_statement_date,omitempty"`
-	// True if user can only monitor this account without trading.
+	// True if user can only monitor this username without trading.
 	IsViewOnly *bool `protobuf:"varint,5,opt,name=is_view_only,json=isViewOnly" json:"is_view_only,omitempty"`
-	// True if user was unauthorized and is not able to use/ see this account anymore.
+	// True if user was unauthorized and is not able to use/ see this username anymore.
 	IsUnauthorized *bool `protobuf:"varint,6,opt,name=is_unauthorized,json=isUnauthorized" json:"is_unauthorized,omitempty"`
-	// ID of cluster of common properties the account belongs to (if any).
+	// ID of cluster of common properties the username belongs to (if any).
 	AccountClusterId *int64 `protobuf:"zigzag64,7,opt,name=account_cluster_id,json=accountClusterId" json:"account_cluster_id,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -5686,7 +5686,7 @@ func (m *LastStatementBalancesReport) GetBalance() []*Balance {
 // Balance record for one of the accounts and one of the currencies (id is used as a key for updates).
 // Values like OTE, UPL and MVO are from statements and won't be updated in real time but after each next statement.
 // Money related values are in the specified currency.
-// NOTE: There could be more then one balance for one account and one currency.
+// NOTE: There could be more then one balance for one username and one currency.
 //       Not all values for a balance record are provided by all statements, it is up to Brokerage to include such values and only
 //       currency and ending cash balance are required to be valid.
 type Balance struct {
@@ -6758,7 +6758,7 @@ func (m *StrategyDefinitionReport) GetContractMetadata() *ContractMetadata {
 
 // Subscription to trade routing data and notifications about trading information updates.
 // Client can be subscribed to several publications.
-// If some account is subscribed by several publications then client will receive a separate snapshot per subscription
+// If some username is subscribed by several publications then client will receive a separate snapshot per subscription
 // but one real time update with a list of subscriptions.
 type TradeSubscription struct {
 	// ID of a subscription that should be unique enough to match responses and updates with corresponding requests.
@@ -7165,7 +7165,7 @@ func (m *NewOrder) GetSuspend() bool {
 
 // Trade routing order. It is used as new order request and as a part of order status updates.
 type Order struct {
-	// Id of an account that is/ was used to place an order.
+	// Id of an username that is/ was used to place an order.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// Client side time when an order was submitted (UTC).
 	WhenUtcTime *int64 `protobuf:"zigzag64,2,req,name=when_utc_time,json=whenUtcTime" json:"when_utc_time,omitempty"`
@@ -7510,7 +7510,7 @@ func (m *SyntheticStrategyProperties) GetNodeIndex() uint32 {
 type ModifyOrder struct {
 	// Order id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,1,req,name=order_id,json=orderId" json:"order_id,omitempty"`
-	// ID of the order's account.
+	// ID of the order's username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// This client order ID of the order to modify.
 	OrigClOrderId *string `protobuf:"bytes,3,req,name=orig_cl_order_id,json=origClOrderId" json:"orig_cl_order_id,omitempty"`
@@ -7675,7 +7675,7 @@ func (m *ModifyOrder) GetGoodThruUtcTime() int64 {
 type CancelOrder struct {
 	// Order id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,1,req,name=order_id,json=orderId" json:"order_id,omitempty"`
-	// ID of the order's account.
+	// ID of the order's username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// This client order ID of the order to cancel.
 	OrigClOrderId *string `protobuf:"bytes,3,req,name=orig_cl_order_id,json=origClOrderId" json:"orig_cl_order_id,omitempty"`
@@ -7731,7 +7731,7 @@ func (m *CancelOrder) GetWhenUtcTime() int64 {
 type ActivateOrder struct {
 	// Order id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,1,req,name=order_id,json=orderId" json:"order_id,omitempty"`
-	// ID of the order's account.
+	// ID of the order's username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// This client order ID of the order to activate.
 	OrigClOrderId *string `protobuf:"bytes,3,req,name=orig_cl_order_id,json=origClOrderId" json:"orig_cl_order_id,omitempty"`
@@ -7787,7 +7787,7 @@ func (m *ActivateOrder) GetWhenUtcTime() int64 {
 type ModifyUserAttributes struct {
 	// ID of the order chain.
 	ChainOrderId *string `protobuf:"bytes,1,req,name=chain_order_id,json=chainOrderId" json:"chain_order_id,omitempty"`
-	// ID of the order's account.
+	// ID of the order's username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// List of attributes to modify.
 	UserAttribute []*UserAttribute `protobuf:"bytes,3,rep,name=user_attribute,json=userAttribute" json:"user_attribute,omitempty"`
@@ -7931,7 +7931,7 @@ func (m *CompoundOrderEntry) GetCompoundOrder() *CompoundOrder {
 type SuspendOrder struct {
 	// Order id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,1,req,name=order_id,json=orderId" json:"order_id,omitempty"`
-	// ID of the order's account.
+	// ID of the order's username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// This client order ID of the order to suspend (park).
 	OrigClOrderId *string `protobuf:"bytes,3,req,name=orig_cl_order_id,json=origClOrderId" json:"orig_cl_order_id,omitempty"`
@@ -8047,7 +8047,7 @@ type OrderStatus struct {
 	// In this case you should look for matching contract metadata in positions.
 	// The opposite is also true: contract metadata for positions can be in order status messages.
 	ContractMetadata []*ContractMetadata `protobuf:"bytes,19,rep,name=contract_metadata,json=contractMetadata" json:"contract_metadata,omitempty"`
-	// Id of an account for this order status.
+	// Id of an username for this order status.
 	AccountId *int32 `protobuf:"zigzag32,20,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// If the order is part of a compound order then this field describe the structure of the compound.
 	CompoundOrderStructure *CompoundOrderStructure `protobuf:"bytes,21,opt,name=compound_order_structure,json=compoundOrderStructure" json:"compound_order_structure,omitempty"`
@@ -8597,7 +8597,7 @@ func (m *TransactionStatus) GetEffectiveRegulatoryAlgorithmId() uint32 {
 
 // Trade per specific outright contract.
 type Trade struct {
-	// Trade ID assigned by server, unique within account.
+	// Trade ID assigned by server, unique within username.
 	TradeId *string `protobuf:"bytes,1,req,name=trade_id,json=tradeId" json:"trade_id,omitempty"`
 	// Server contract identifier.
 	ContractId *uint32 `protobuf:"varint,2,req,name=contract_id,json=contractId" json:"contract_id,omitempty"`
@@ -9764,7 +9764,7 @@ func (m *StrategyTradingParameters) GetLegParameters() []*StrategyOrderLegParame
 	return nil
 }
 
-// Status of a contract open positions and purchase and sales for a specific account for the current day
+// Status of a contract open positions and purchase and sales for a specific username for the current day
 // (contractId and accountId are used as a key for updates).
 // Contract position is deleted when all open positions and purchase and sales groups are deleted.
 type PositionStatus struct {
@@ -9858,7 +9858,7 @@ func (m *PositionStatus) GetContractMetadata() *ContractMetadata {
 }
 
 // Account and contract open position.
-// There could be more than one position per account and contract.
+// There could be more than one position per username and contract.
 // (id is used as a key for updates).
 type OpenPosition struct {
 	// Surrogate id as a key for updates.
@@ -10047,7 +10047,7 @@ func (m *MatchedTrade) GetIsAggregated() bool {
 	return false
 }
 
-// Status of the collateral for a specific account.
+// Status of the collateral for a specific username.
 // An update is sent once it is changed, updates might be consolidated in case of frequent changes.
 type CollateralStatus struct {
 	// List of trade subscription IDs this status is related to.
@@ -10062,25 +10062,25 @@ type CollateralStatus struct {
 	Currency *string `protobuf:"bytes,4,req,name=currency" json:"currency,omitempty"`
 	// Current total margin.
 	TotalMargin *float64 `protobuf:"fixed64,5,req,name=total_margin,json=totalMargin" json:"total_margin,omitempty"`
-	// Available account funds including balance, realized profit (or loss), collateral and credits.
-	// OTE and MVO are included regarding the account risk parameters.
+	// Available username funds including balance, realized profit (or loss), collateral and credits.
+	// OTE and MVO are included regarding the username risk parameters.
 	PurchasingPower *float64 `protobuf:"fixed64,6,req,name=purchasing_power,json=purchasingPower" json:"purchasing_power,omitempty"`
 	// Open trade equity, or potential profit (or loss) from futures and future-style options positions
 	// based on opening price of the position and the current future trade/best bid/best ask
-	// (regarding to the risk account settings) or settlement price if trade is not available.
+	// (regarding to the risk username settings) or settlement price if trade is not available.
 	// Included if purchasing power depends on it.
 	Ote *float64 `protobuf:"fixed64,7,opt,name=ote" json:"ote,omitempty"`
 	// Market value of options calculated as the current market trade/best bid/best ask of the option
-	// (regarding to the risk account settings) times the number of options
+	// (regarding to the risk username settings) times the number of options
 	// (positive for long options and negative for short options) in the portfolio.
 	// Included if purchasing power depends on it.
 	Mvo *float64 `protobuf:"fixed64,8,opt,name=mvo" json:"mvo,omitempty"`
 	// Market value of futures calculated as the current market trade/best bid/best ask
-	// (regarding to the risk account settings) times the number of futures
+	// (regarding to the risk username settings) times the number of futures
 	// (positive for long and negative for short) in the portfolio.
 	// Included if applicable.
 	Mvf *float64 `protobuf:"fixed64,10,opt,name=mvf" json:"mvf,omitempty"`
-	// Allowable margin credit of the account
+	// Allowable margin credit of the username
 	MarginCredit     *float64 `protobuf:"fixed64,9,opt,name=margin_credit,json=marginCredit" json:"margin_credit,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
@@ -10164,7 +10164,7 @@ func (m *CollateralStatus) GetMarginCredit() float64 {
 // 1) placing orders to offset filled leg position(s) at current mkt price(s) and (simultaneously)
 // 2) cancelling the hung quantity.
 type SyntheticLiquidate struct {
-	// Id of an account that is used to place an order.
+	// Id of an username that is used to place an order.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// Order id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,2,req,name=order_id,json=orderId" json:"order_id,omitempty"`
@@ -10212,7 +10212,7 @@ func (m *SyntheticLiquidate) GetWhenUtcTime() int64 {
 // 1) placing LMT orders to offset filled leg position(s) at their fill price(s) and (simultaneously)
 // 2) cancelling the hung quantity.
 type SyntheticScratch struct {
-	// Id of an account that is used to place an order.
+	// Id of an username that is used to place an order.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// Order id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,2,req,name=order_id,json=orderId" json:"order_id,omitempty"`
@@ -10259,7 +10259,7 @@ func (m *SyntheticScratch) GetWhenUtcTime() int64 {
 // Modify an order to get an immediate fill
 // (on either the entire order or previously reported hanging quantity on a synthetic strategy order).
 type GoMarket struct {
-	// Id of an account that is used to place an order.
+	// Id of an username that is used to place an order.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// Order id assigned by the server after the last modification.
 	OrderId *string `protobuf:"bytes,2,req,name=order_id,json=orderId" json:"order_id,omitempty"`
@@ -10318,7 +10318,7 @@ type MarketDataSubscription struct {
 	// False or omitted means that snapshots will contain market values for current trading day only.
 	// True means that snapshots will contain market values for several (up to 3) past trading days.
 	IncludePastMarketValues *bool `protobuf:"varint,3,opt,name=include_past_market_values,json=includePastMarketValues" json:"include_past_market_values,omitempty"`
-	// Optional account cluster ID for account specific data subscriptions.
+	// Optional username cluster ID for username specific data subscriptions.
 	AccountClusterId *int64 `protobuf:"zigzag64,4,opt,name=account_cluster_id,json=accountClusterId" json:"account_cluster_id,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -10368,7 +10368,7 @@ type MarketDataSubscriptionStatus struct {
 	Level *uint32 `protobuf:"varint,3,req,name=level" json:"level,omitempty"`
 	// Possible details of subscription failure.
 	TextMessage *string `protobuf:"bytes,4,opt,name=text_message,json=textMessage" json:"text_message,omitempty"`
-	// Account cluster ID for account specific data subscriptions.
+	// Account cluster ID for username specific data subscriptions.
 	AccountClusterId *int64 `protobuf:"zigzag64,5,opt,name=account_cluster_id,json=accountClusterId" json:"account_cluster_id,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -10429,7 +10429,7 @@ type RealTimeMarketData struct {
 	// Market values of a contract (e.g. Open/High/Low/Close) for several past trading days.
 	// Present in snapshots and in updates if some values are changed (only changed values are included in updates).
 	MarketValues []*MarketValues `protobuf:"bytes,5,rep,name=market_values,json=marketValues" json:"market_values,omitempty"`
-	// Account cluster ID for account specific data subscriptions.
+	// Account cluster ID for username specific data subscriptions.
 	AccountClusterId *int64 `protobuf:"zigzag64,6,opt,name=account_cluster_id,json=accountClusterId" json:"account_cluster_id,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -11459,7 +11459,7 @@ type HistoricalOrdersRequest struct {
 	// Only orders till specified business date (inclusively) is to be returned (date only value in time format).
 	// Current business day if the field is omitted.
 	ToDate *int64 `protobuf:"zigzag64,2,opt,name=to_date,json=toDate" json:"to_date,omitempty"`
-	// Filter orders by account. Not specifying any account means all accounts of the user.
+	// Filter orders by username. Not specifying any username means all accounts of the user.
 	AccountId        []int32 `protobuf:"zigzag32,3,rep,name=account_id,json=accountId" json:"account_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
