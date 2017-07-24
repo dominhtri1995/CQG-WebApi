@@ -204,28 +204,25 @@ func RecvMessage() {
 								for k := range userLogonList {
 									user := &userLogonList[k]
 									if userLogonList[k].accountID == accountID {
+										match := false
 										for positionIndex := range user.positionList {
 											if user.positionList[positionIndex].contractID == userPosition.contractID { //COntract already exist
-												//short := position.GetIsShortOpenPosition()
-												//if short == user.positionList[positionIndex].shortBool {
-												//	user.positionList[positionIndex].quantity += userPosition.quantity
-												//	user.positionList[positionIndex].price = user.positionList[positionIndex].price*float64(user.positionList[positionIndex].quantity) + float64(userPosition.quantity)*userPosition.price
-												//	user.positionList[positionIndex].price /= float64(user.positionList[positionIndex].quantity)
-												//} else {//offset position, remove position if quantity goes to zero
-												//	user.positionList[positionIndex].quantity -= userPosition.quantity
-												//	if user.positionList[positionIndex].quantity == 0{
-												//		user.positionList= append(user.positionList[:positionIndex],user.positionList[positionIndex+1:]...)
-												//	}
-												//}
-												//
-												//if user.positionList[positionIndex].quantity <0{
-												//	user.positionList[positionIndex].side, user.positionList[positionIndex].shortBool =flipSide(user.positionList[positionIndex].side, user.positionList[positionIndex].shortBool)
-												//	user.positionList[positionIndex].price = userPosition.price
-												//}
-												user.positionList = append(user.positionList[:positionIndex], user.positionList[positionIndex+1:]...)
+												if position.GetPurchaseAndSalesGroup() == nil {
+													user.positionList[positionIndex].price = user.positionList[positionIndex].price*float64(user.positionList[positionIndex].quantity) + float64(userPosition.quantity)*userPosition.price
+													user.positionList[positionIndex].quantity += userPosition.quantity
+													user.positionList[positionIndex].price /= float64(user.positionList[positionIndex].quantity)
+												} else { //offset position, remove position if quantity goes to zero
+													user.positionList = append(user.positionList[:positionIndex], user.positionList[positionIndex+1:]...)
+													user.positionList = append(user.positionList, userPosition)
+												}
+
+												match = true
+												break
 											}
 										}
-										user.positionList = append(user.positionList, userPosition)
+										if match == false { // new contract added to position
+											user.positionList = append(user.positionList, userPosition)
+										}
 									}
 								}
 

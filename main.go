@@ -43,6 +43,7 @@ Loop:
 		}
 		switch action {
 		case "1":
+			fmt.Println("Position :")
 			user := CQG_GetPosition("VTechapi", 16958204)
 			if user != nil {
 				for _, po := range user.positionList {
@@ -61,6 +62,7 @@ Loop:
 				}
 			}
 		case "3":
+			fmt.Println("Working Order:")
 			user := CQG_GetWorkingOrder("VTechapi", 16958204) //return a list of working order
 			if user != nil {
 				for _, wo := range user.workingOrderList {
