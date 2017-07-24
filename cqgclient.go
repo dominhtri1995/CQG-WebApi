@@ -19,6 +19,8 @@ var updateOrderList []NewOrderCancelUpdateStatus
 var chanLogon = make(chan *ServerMsg)
 var chanInformationReport = make(chan *ServerMsg)
 var chanOrderSubscription = make(chan *ServerMsg)
+var chanPositionSubcription = make(chan *ServerMsg)
+var chanCollateralSubscription = make(chan *ServerMsg)
 
 func CQG_NewOrderRequest(id uint32, accountID int32, contractID uint32, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 	var c = make(chan NewOrderCancelUpdateStatus)
@@ -41,6 +43,14 @@ func CQG_GetPosition(account string, accountID int32) *User {
 	return nil
 }
 func CQG_GetWorkingOrder(account string, accountID int32) *User {
+	for _, user := range userLogonList {
+		if user.username == account && user.accountID == accountID {
+			return &user
+		}
+	}
+	return nil
+}
+func CQG_GetCollateralInfo(account string, accountID int32) *User {
 	for _, user := range userLogonList {
 		if user.username == account && user.accountID == accountID {
 			return &user
@@ -132,6 +142,7 @@ func RecvMessage() {
 							accountID := position.GetAccountId()
 							if len(position.GetOpenPosition()) > 0 {
 								var userPosition Position
+								userPosition.subPositionMap = make(map[int32]*OpenPosition)
 								userPosition.contractID = position.GetContractId()
 
 								for id, metadata := range metadataMap {
@@ -153,6 +164,7 @@ func RecvMessage() {
 								for _, openPosition := range position.GetOpenPosition() {
 									userPosition.quantity += openPosition.GetQty()
 									userPosition.price += openPosition.GetPrice() * float64(openPosition.GetQty())
+									userPosition.subPositionMap[openPosition.GetId()] = openPosition
 								}
 								//averaging out the price
 								userPosition.price /= float64(userPosition.quantity)
@@ -173,6 +185,7 @@ func RecvMessage() {
 							accountID := position.GetAccountId()
 							if len(position.GetOpenPosition()) > 0 {
 								var userPosition Position
+								userPosition.subPositionMap = make(map[int32]*OpenPosition)
 								userPosition.contractID = position.GetContractId()
 
 								for id, metadata := range metadataMap {
@@ -193,13 +206,6 @@ func RecvMessage() {
 									userPosition.shortBool = false
 								}
 
-								for _, openPosition := range position.GetOpenPosition() {
-									userPosition.quantity += openPosition.GetQty()
-									userPosition.price += openPosition.GetPrice() * float64(openPosition.GetQty())
-								}
-								//averaging out the price
-								userPosition.price /= float64(userPosition.quantity)
-
 								//add to Position list of user
 								for k := range userLogonList {
 									user := &userLogonList[k]
@@ -207,20 +213,34 @@ func RecvMessage() {
 										match := false
 										for positionIndex := range user.positionList {
 											if user.positionList[positionIndex].contractID == userPosition.contractID { //COntract already exist
-												if position.GetPurchaseAndSalesGroup() == nil {
-													user.positionList[positionIndex].price = user.positionList[positionIndex].price*float64(user.positionList[positionIndex].quantity) + float64(userPosition.quantity)*userPosition.price
-													user.positionList[positionIndex].quantity += userPosition.quantity
-													user.positionList[positionIndex].price /= float64(user.positionList[positionIndex].quantity)
-												} else { //offset position, remove position if quantity goes to zero
-													user.positionList = append(user.positionList[:positionIndex], user.positionList[positionIndex+1:]...)
-													user.positionList = append(user.positionList, userPosition)
+												for _, openPosition := range position.GetOpenPosition() {
+													if oldOpenPosition, ok := user.positionList[positionIndex].subPositionMap[openPosition.GetId()]; ok {
+														oldOpenPosition.Qty = openPosition.Qty
+														oldOpenPosition.Price = openPosition.Price
+
+													}else{
+														fmt.Println("add id ",openPosition.GetId())
+														user.positionList[positionIndex].subPositionMap[openPosition.GetId()] = openPosition
+													}
 												}
+												user.positionList[positionIndex].updatePriceAndQty()
+												if user.positionList[positionIndex].quantity ==0{//remove position if qty =0 square position
+													user.positionList = append(user.positionList[:positionIndex],user.positionList[positionIndex+1:]...)
+												}
+												user.positionList[positionIndex].side = userPosition.side
 
 												match = true
 												break
 											}
 										}
 										if match == false { // new contract added to position
+											for _, openPosition := range position.GetOpenPosition() {
+												userPosition.quantity += openPosition.GetQty()
+												userPosition.price += openPosition.GetPrice() * float64(openPosition.GetQty())
+												userPosition.subPositionMap[openPosition.GetId()] = openPosition
+											}
+											//averaging out the price
+											userPosition.price /= float64(userPosition.quantity)
 											user.positionList = append(user.positionList, userPosition)
 										}
 									}
@@ -440,9 +460,36 @@ func RecvMessage() {
 							}
 						}
 					}
+				case "collateral_status":
+					for _, col := range msg.GetCollateralStatus() {
+						accountID := col.GetAccountId()
+						for k := range userLogonList {
+							if userLogonList[k].accountID == accountID {
+								userLogonList[k].collateralInfo.currency = col.GetCurrency()
+								userLogonList[k].collateralInfo.marginCredit = col.GetMarginCredit()
+								userLogonList[k].collateralInfo.mvf = col.GetMvf()
+								userLogonList[k].collateralInfo.mvo = col.GetMvo()
+								userLogonList[k].collateralInfo.upl = col.GetOte()
+								userLogonList[k].collateralInfo.purchasingPower = col.GetPurchasingPower()
+								userLogonList[k].collateralInfo.totalMargin = col.GetTotalMargin()
+							}
+						}
+					}
+
 				case "trade_subscription_status":
 				case "trade_snapshot_completion":
-					chanOrderSubscription <- msg
+					for _, tsc := range msg.GetTradeSnapshotCompletion() {
+						for _, scope := range tsc.GetSubscriptionScope() {
+							switch int(scope) {
+							case 1:
+								chanOrderSubscription <- msg
+							case 2:
+								chanPositionSubcription <- msg
+							case 3:
+								chanCollateralSubscription <- msg
+							}
+						}
+					}
 				case "user_message":
 					msgType := msg.GetUserMessage()[0].GetMessageType()
 					if msgType == 1 {
@@ -506,6 +553,7 @@ type User struct {
 	accountID        int32
 	workingOrderList []WorkingOrder
 	positionList     []Position
+	collateralInfo   CollateralInfo
 }
 
 type WorkingOrder struct {
@@ -535,6 +583,29 @@ type Position struct {
 	productDescription string
 	priceScale         float64
 	tickValue          float64
+	subPositionMap     map[int32]*OpenPosition
+}
+
+func (position *Position) updatePriceAndQty() {
+	position.quantity = 0
+	position.price = 0
+	for _, openPosition := range position.subPositionMap {
+		position.quantity += openPosition.GetQty()
+		position.price += position.price * float64(openPosition.GetQty())
+	}
+	//averaging out the price
+	position.price /= float64(position.quantity)
+
+}
+
+type CollateralInfo struct {
+	currency        string
+	totalMargin     float64
+	purchasingPower float64
+	upl             float64
+	mvo             float64
+	marginCredit    float64
+	mvf             float64
 }
 type NewOrderCancelUpdateStatus struct {
 	clorderID string

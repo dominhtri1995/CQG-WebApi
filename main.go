@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/rs/xid"
+	"reflect"
 )
 
 var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
@@ -49,7 +50,9 @@ Loop:
 				for _, po := range user.positionList {
 					fmt.Printf("%s %d %s at %f \n", po.side, po.quantity, po.symbol, po.price)
 				}
+				fmt.Printf("Your total unrealized P&L is: %f %s\n",user.collateralInfo.upl,user.collateralInfo.currency)
 			}
+
 		case "2":
 			CQG_InformationRequest("BZU7", 1)
 			ordStatus := CQG_NewOrderRequest(1, 16958204, 1, xid.New().String(), 2, 4700, 2, 1, 1, false, makeTimestamp())
@@ -116,7 +119,16 @@ Loop:
 						fmt.Printf("Reason: %s", ordStatus.reason)
 					}
 				}
-
+			}
+		case "8":
+			user := CQG_GetCollateralInfo("VTechapi", 16958204)
+			if user != nil {
+				o := reflect.TypeOf(user.collateralInfo)
+				v := reflect.ValueOf(user.collateralInfo)
+				for i:=0 ; i< v.NumField(); i++{
+					fmt.Printf("%s :",o.Field(i).Name)
+					fmt.Println(v.Field(i))
+				}
 			}
 		case "9":
 			break Loop
@@ -133,6 +145,7 @@ func QueryAction() (string, error) {
 	fmt.Println("5) Cancel First working order")
 	fmt.Println("6) Cancel All working order")
 	fmt.Println("7) Replace First working order")
+	fmt.Println("8) Full Colleteral Status")
 	fmt.Println("9) Quit")
 	fmt.Print("Action: ")
 	scanner := bufio.NewScanner(os.Stdin)

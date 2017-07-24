@@ -9,6 +9,7 @@ func CQG_OrderSubscription(id uint32, subscribe bool) {
 	var arr []uint32
 	arr = append(arr, 1)
 	arr = append(arr,2)
+	arr = append(arr, 3)
 	clientMsg := &ClientMsg{
 		TradeSubscription: []*TradeSubscription{
 			{
@@ -19,7 +20,8 @@ func CQG_OrderSubscription(id uint32, subscribe bool) {
 		},
 	}
 	SendMessage(clientMsg)
-	_ = <-chanOrderSubscription
+	_,_,_= <-chanOrderSubscription, <-chanPositionSubcription , <-chanCollateralSubscription
+	fmt.Println("Subscription done")
 }
 func CQG_PositionSubscription(id uint32, subscribe bool) {
 	var arr []uint32
