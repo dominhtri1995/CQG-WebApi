@@ -90,12 +90,12 @@ func RecvMessage() {
 
 		msg := RecvMessageOne()
 		if (msg == nil) {
-			return
+			continue
 		}
 		v := reflect.ValueOf(*msg)
 		//t := reflect.TypeOf(*msg)
 		_, md := descriptor.ForMessage(msg)
-		if msg.OrderStatus != nil || msg.PositionStatus != nil{
+		if msg.OrderStatus != nil || msg.PositionStatus != nil {
 			//Save contractMetadata from order_status
 			for _, orderStatus := range msg.GetOrderStatus() {
 				for _, metadata := range orderStatus.GetContractMetadata() {
@@ -125,10 +125,10 @@ func RecvMessage() {
 						fmt.Println("Error Information Request")
 					}
 				case "position_status":
-					fmt.Println("in position snapshot")
+					fmt.Println("in position_status")
 					for _, position := range msg.GetPositionStatus() {
 						//update position
-						if position.GetIsSnapshot() == true {
+						if position.GetIsSnapshot() == true { // Snapshot
 							accountID := position.GetAccountId()
 							if len(position.GetOpenPosition()) > 0 {
 								var userPosition Position
@@ -169,15 +169,76 @@ func RecvMessage() {
 							} else {
 								continue
 							}
-						} else {
+						} else { //Position Update
+							accountID := position.GetAccountId()
+							if len(position.GetOpenPosition()) > 0 {
+								var userPosition Position
+								userPosition.contractID = position.GetContractId()
+
+								for id, metadata := range metadataMap {
+									if id == userPosition.contractID {
+										userPosition.symbol = metadata.GetTitle()
+										userPosition.productDescription = metadata.GetDescription()
+										userPosition.priceScale = metadata.GetCorrectPriceScale()
+										userPosition.tickValue = metadata.GetTickValue()
+									}
+								}
+
+								short := position.GetIsShortOpenPosition()
+								if short == true {
+									userPosition.side = "SELL"
+									userPosition.shortBool = true
+								} else {
+									userPosition.side = "BUY"
+									userPosition.shortBool = false
+								}
+
+								for _, openPosition := range position.GetOpenPosition() {
+									userPosition.quantity += openPosition.GetQty()
+									userPosition.price += openPosition.GetPrice() * float64(openPosition.GetQty())
+								}
+								//averaging out the price
+								userPosition.price /= float64(userPosition.quantity)
+
+								//add to Position list of user
+								for k := range userLogonList {
+									user := &userLogonList[k]
+									if userLogonList[k].accountID == accountID {
+										for positionIndex := range user.positionList {
+											if user.positionList[positionIndex].contractID == userPosition.contractID { //COntract already exist
+												//short := position.GetIsShortOpenPosition()
+												//if short == user.positionList[positionIndex].shortBool {
+												//	user.positionList[positionIndex].quantity += userPosition.quantity
+												//	user.positionList[positionIndex].price = user.positionList[positionIndex].price*float64(user.positionList[positionIndex].quantity) + float64(userPosition.quantity)*userPosition.price
+												//	user.positionList[positionIndex].price /= float64(user.positionList[positionIndex].quantity)
+												//} else {//offset position, remove position if quantity goes to zero
+												//	user.positionList[positionIndex].quantity -= userPosition.quantity
+												//	if user.positionList[positionIndex].quantity == 0{
+												//		user.positionList= append(user.positionList[:positionIndex],user.positionList[positionIndex+1:]...)
+												//	}
+												//}
+												//
+												//if user.positionList[positionIndex].quantity <0{
+												//	user.positionList[positionIndex].side, user.positionList[positionIndex].shortBool =flipSide(user.positionList[positionIndex].side, user.positionList[positionIndex].shortBool)
+												//	user.positionList[positionIndex].price = userPosition.price
+												//}
+												user.positionList = append(user.positionList[:positionIndex], user.positionList[positionIndex+1:]...)
+											}
+										}
+										user.positionList = append(user.positionList, userPosition)
+									}
+								}
+
+							} else {
+								continue
+							}
 
 						}
 					}
 
 				case "order_status":
-
 					for _, orderStatus := range msg.GetOrderStatus() {
-						if (orderStatus.GetIsSnapshot() == false) { //Fill Update
+						if orderStatus.GetIsSnapshot() == false { //Fill Update
 							clorIDTransaction := orderStatus.GetTransactionStatus()[0].GetClOrderId()
 							switch TransactionStatus_Status_name[int32(orderStatus.GetTransactionStatus()[0].GetStatus())] {
 							case TransactionStatus_REJECTED.String():
@@ -201,7 +262,7 @@ func RecvMessage() {
 										newOrderList = append(newOrderList[:j], newOrderList[j+1:]...)
 									}
 								}
-
+								//Update Working orders
 								accountID := orderStatus.GetOrder().GetAccountId()
 
 								var wo WorkingOrder
@@ -214,7 +275,7 @@ func RecvMessage() {
 								wo.timeInForce = orderStatus.GetOrder().GetDuration()
 
 								var price int32
-								if (wo.ordType == 2) {
+								if (wo.ordType == 2 || wo.ordType == 4 ) {
 									price = orderStatus.GetOrder().GetLimitPrice()
 								} else if (wo.ordType == 3 || wo.ordType == 4 ) {
 									price = orderStatus.GetOrder().GetStopPrice()
@@ -223,15 +284,17 @@ func RecvMessage() {
 								wo.side = Order_Side_name[int32(wo.sideNum)]
 
 								for _, metadata := range metadataMap {
-									if (metadata.GetContractId() == wo.contractID) {
+									if metadata.GetContractId() == wo.contractID {
 										wo.symbol = metadata.GetTitle()
 										wo.productDescription = metadata.GetDescription()
+										wo.priceScale = metadata.GetCorrectPriceScale()
 										wo.price = float64(price) * metadata.GetCorrectPriceScale()
 									}
 								}
 								for k := range userLogonList {
-									user := userLogonList[k]
+									user := &userLogonList[k]
 									if user.accountID == accountID {
+										//fmt.Println("append new order to working")
 										user.workingOrderList = append(user.workingOrderList, wo)
 									}
 								}
@@ -239,7 +302,8 @@ func RecvMessage() {
 							case TransactionStatus_FILL.String():
 								accountID := orderStatus.GetOrder().GetAccountId()
 								chainOrderID := orderStatus.GetChainOrderId()
-								for _, user := range userLogonList {
+								for j := range userLogonList {
+									user := &userLogonList[j]
 									if user.accountID == accountID {
 										for i := range user.workingOrderList {
 											wo := &user.workingOrderList[i]
@@ -253,7 +317,7 @@ func RecvMessage() {
 										}
 									}
 								}
-
+								//Update Working orders
 								//fillQuantity := orderStatus.GetFillQty()
 								//fillPrice := orderStatus.GetAvgFillPrice()
 								// Notification here
@@ -266,6 +330,20 @@ func RecvMessage() {
 										coq.channel <- *coq
 										cancelOrderList = append(cancelOrderList[:j], cancelOrderList[j+1:]...)
 
+									}
+								}
+								//Update Working orders
+								chainOrderID := orderStatus.GetChainOrderId()
+								accountID := orderStatus.GetOrder().GetAccountId()
+								for j := range userLogonList {
+									user := &userLogonList[j]
+									if user.accountID == accountID {
+										for k := range user.workingOrderList {
+											if user.workingOrderList[k].chainOrderID == chainOrderID {
+												user.workingOrderList = append(user.workingOrderList[:k], user.workingOrderList[k+1:]...)
+												break
+											}
+										}
 									}
 								}
 							case TransactionStatus_REJECT_CANCEL.String():
@@ -289,6 +367,7 @@ func RecvMessage() {
 										updateOrderList = append(updateOrderList[:j], updateOrderList[j+1:]...)
 									}
 								}
+								//update working order
 								//account := orderStatus.GetEnteredByUser()
 								accountID := orderStatus.GetOrder().GetAccountId()
 								chainOrderID := orderStatus.GetChainOrderId()
@@ -303,7 +382,7 @@ func RecvMessage() {
 												wo.timeInForce = orderStatus.GetOrder().GetDuration()
 												ordType := orderStatus.GetOrder().GetOrderType()
 
-												if (ordType == 2) {
+												if (ordType == 2 || wo.ordType == 4) {
 													wo.price = float64(orderStatus.GetOrder().GetLimitPrice()) * wo.priceScale
 												} else if (wo.ordType == 3 || wo.ordType == 4 ) {
 													wo.price = float64(orderStatus.GetOrder().GetStopPrice()) * wo.priceScale
@@ -407,6 +486,22 @@ func hash(s string) uint32 {
 	h.Write([]byte(s))
 	return h.Sum32()
 }
+func flipSide(side string, shortBool bool) (s string, b bool) {
+	switch side {
+	case "BUY":
+		s = "SELL"
+	case "SELL":
+		s = "BUY"
+	}
+
+	switch shortBool {
+	case true:
+		b = false
+	case false:
+		b = true
+	}
+	return s, b
+}
 
 type User struct {
 	username         string
@@ -436,6 +531,7 @@ type WorkingOrder struct {
 type Position struct {
 	quantity           uint32
 	side               string
+	shortBool          bool
 	price              float64
 	contractID         uint32
 	symbol             string

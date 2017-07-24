@@ -63,9 +63,9 @@ func NewOrderRequest(id uint32, accountID int32, contractID uint32, clorderID st
 		},
 	}
 
-	if (orderType == 2) {
+	if orderType == 2 || orderType ==4 {
 		clientMsg.GetOrderRequest()[0].GetNewOrder().GetOrder().LimitPrice = &price
-	} else if ( orderType == 3 || orderType == 4) {
+	} else if  orderType == 3 || orderType == 4 {
 		clientMsg.GetOrderRequest()[0].GetNewOrder().GetOrder().StopPrice = &price
 	}
 

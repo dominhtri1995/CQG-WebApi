@@ -44,9 +44,9 @@ Loop:
 		switch action {
 		case "1":
 			user := CQG_GetPosition("VTechapi", 16958204)
-			if user != nil{
-				for _,po := range user.positionList{
-					fmt.Printf("%s %d %s at %f \n",po.side,po.quantity,po.symbol,po.price)
+			if user != nil {
+				for _, po := range user.positionList {
+					fmt.Printf("%s %d %s at %f \n", po.side, po.quantity, po.symbol, po.price)
 				}
 			}
 		case "2":
@@ -61,35 +61,33 @@ Loop:
 				}
 			}
 		case "3":
-			//DONT EVER WRITE TO user object. You can extract any information you want
-			// Make changes to user object will cause serious consequences
 			user := CQG_GetWorkingOrder("VTechapi", 16958204) //return a list of working order
-			if user != nil{
-				for _,wo := range user.workingOrderList{
-					fmt.Printf("%s %d %s at %f \n",wo.side,wo.quantity,wo.symbol,wo.price)
+			if user != nil {
+				for _, wo := range user.workingOrderList {
+					fmt.Printf("%s %d %s at %f \n", wo.side, wo.quantity, wo.symbol, wo.price)
 				}
 			}
 		case "4":
 			fmt.Println("The answer is Tri Do :3")
 		case "5":
 			user := CQG_GetWorkingOrder("VTechapi", 16958204) //return a list of working order
-			if user != nil && len(user.workingOrderList) > 0{
+			if user != nil && len(user.workingOrderList) > 0 {
 				wo := user.workingOrderList[0]
-				ordStatus := CQG_CancelOrderRequest(1,wo.orderID,user.accountID,wo.clorID,xid.New().String(),makeTimestamp())
-				if (ordStatus.status == "ok") {
+				ordStatus := CQG_CancelOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp())
+				if ordStatus.status == "ok" {
 					fmt.Println("Order Cancelled Successfully")
-				} else if (ordStatus.status == "rejected") {
+				} else if ordStatus.status == "rejected" {
 					fmt.Printf("Order cancel Rejected \n")
-					if (ordStatus.reason != "") {
+					if ordStatus.reason != "" {
 						fmt.Printf("Reason: %s", ordStatus.reason)
 					}
 				}
 			}
 		case "6":
 			user := CQG_GetWorkingOrder("VTechapi", 16958204) //return a list of working order
-			if user != nil && len(user.workingOrderList) > 0{
-				for _, wo := range user.workingOrderList{
-					ordStatus := CQG_CancelOrderRequest(1,wo.orderID,user.accountID,wo.clorID,xid.New().String(),makeTimestamp())
+			if user != nil && len(user.workingOrderList) > 0 {
+				for _, wo := range user.workingOrderList {
+					ordStatus := CQG_CancelOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp())
 					if (ordStatus.status == "ok") {
 						fmt.Println("Order Cancelled Successfully")
 					} else if (ordStatus.status == "rejected") {
@@ -103,16 +101,17 @@ Loop:
 			}
 		case "7":
 			user := CQG_GetWorkingOrder("VTechapi", 16958204) //return a list of working order
-			if user != nil && len(user.workingOrderList) > 0{
-				for _, wo := range user.workingOrderList{
-					ordStatus := CQG_UpdateOrderRequest(1,wo.orderID,user.accountID,wo.clorID,xid.New().String(),makeTimestamp(),2,int32(wo.price/wo.priceScale),0,wo.timeInForce)
-					if (ordStatus.status == "ok") {
-						fmt.Println("Order Cancelled Successfully")
-					} else if (ordStatus.status == "rejected") {
-						fmt.Printf("Order cancel Rejected \n")
-						if (ordStatus.reason != "") {
-							fmt.Printf("Reason: %s", ordStatus.reason)
-						}
+			if user != nil && len(user.workingOrderList) > 0 {
+				wo := user.workingOrderList[0]
+				fmt.Println(int32(wo.price / wo.priceScale))
+				fmt.Println(wo.priceScale)
+				ordStatus := CQG_UpdateOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp(), 2, int32(wo.price / wo.priceScale), 0, wo.timeInForce)
+				if (ordStatus.status == "ok") {
+					fmt.Println("Order Updated Successfully")
+				} else if (ordStatus.status == "rejected") {
+					fmt.Printf("Order update Rejected \n")
+					if (ordStatus.reason != "") {
+						fmt.Printf("Reason: %s", ordStatus.reason)
 					}
 				}
 
