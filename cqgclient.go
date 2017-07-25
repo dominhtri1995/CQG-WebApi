@@ -219,18 +219,17 @@ func RecvMessage() {
 														oldOpenPosition.Price = openPosition.Price
 
 													}else{
-														fmt.Println("add id ",openPosition.GetId())
 														user.positionList[positionIndex].subPositionMap[openPosition.GetId()] = openPosition
 													}
 												}
 												user.positionList[positionIndex].updatePriceAndQty()
+												user.positionList[positionIndex].side = userPosition.side
+												match = true
 												if user.positionList[positionIndex].quantity ==0{//remove position if qty =0 square position
 													user.positionList = append(user.positionList[:positionIndex],user.positionList[positionIndex+1:]...)
+													break
 												}
-												user.positionList[positionIndex].side = userPosition.side
 
-												match = true
-												break
 											}
 										}
 										if match == false { // new contract added to position
@@ -510,7 +509,7 @@ func RecvMessageOne() (msg *ServerMsg) {
 	}
 	msg = &ServerMsg{}
 	proto.Unmarshal(message, msg)
-	fmt.Printf("recv: %s \n", msg)
+	//fmt.Printf("recv: %s \n", msg)
 	return msg
 }
 
@@ -591,7 +590,7 @@ func (position *Position) updatePriceAndQty() {
 	position.price = 0
 	for _, openPosition := range position.subPositionMap {
 		position.quantity += openPosition.GetQty()
-		position.price += position.price * float64(openPosition.GetQty())
+		position.price += openPosition.GetPrice()* float64(openPosition.GetQty())
 	}
 	//averaging out the price
 	position.price /= float64(position.quantity)
