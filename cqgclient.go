@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/golang/protobuf/proto"
+	"golang.org/x/sync/syncmap"
 	"fmt"
 	"time"
 	"hash/fnv"
@@ -16,12 +17,11 @@ import (
 )
 
 var cqgAccountMap = NewCQGAccountMap()
-var metadataMap = make(map[uint32]*ContractMetadata)
 var userMap = NewUserMap()
 
-var newOrderList []NewOrderCancelUpdateStatus
-var cancelOrderList []NewOrderCancelUpdateStatus
-var updateOrderList []NewOrderCancelUpdateStatus
+var newOrderMap syncmap.Map
+var cancelOrderMap syncmap.Map
+var updateOrderMap syncmap.Map
 
 var chanLogon = make(chan *ServerMsg)
 var chanInformationReport = make(chan *ServerMsg)
@@ -33,16 +33,12 @@ func CQG_StartWebApi(username string, password string, accountID int32) int {
 
 	cqgAccount := NewCQGAccount()
 	if _, ok := cqgAccountMap.accountMap[username]; !ok {
-		err := startNewConnection(cqgAccount)
+		err := startNewConnection(cqgAccount, username)
 
 		if err == nil {
 			return -1
 		}
-		if(cqgAccount.connWithLock.conn == nil){
-			fmt.Println("conn still null")
-		}else{
-			fmt.Println("conn not null anymore")
-		}
+
 		cqgAccount.username = username
 		cqgAccount.password = password
 		cqgAccountMap.addAccount(cqgAccount)
@@ -63,11 +59,11 @@ func CQG_StartWebApi(username string, password string, accountID int32) int {
 	user.accountID = accountID
 	cqgAccount.addUser(&user)
 	userMap.addUser(&user)
-	CQG_OrderSubscription(hash(xid.New().String()), true,username)
+	CQG_OrderSubscription(hash(xid.New().String()), true, username)
 
 	return 0
 }
-func startNewConnection(cqgAccount *CQGAccount) *CQGAccount {
+func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
 	var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
 	flag.Parse()
 	log.SetFlags(0)
@@ -80,14 +76,14 @@ func startNewConnection(cqgAccount *CQGAccount) *CQGAccount {
 		log.Fatal("dial:", err)
 		return nil
 	}
-	go RecvMessage(cqgAccount.connWithLock)
+	go RecvMessage(cqgAccount.connWithLock, username)
 
 	return cqgAccount
 }
 func CQG_NewOrderRequest(id uint32, accountID int32, contractID uint32, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 	var c = make(chan NewOrderCancelUpdateStatus)
-	user,_ := userMap.getUser(accountID)
-	NewOrderRequest(id,user.username ,accountID, contractID, clorderID, orderType, price, duration, side, qty, is_manual, utc, c)
+	user, _ := userMap.getUser(accountID)
+	NewOrderRequest(id, user.username, accountID, contractID, clorderID, orderType, price, duration, side, qty, is_manual, utc, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -97,34 +93,28 @@ func CQG_NewOrderRequest(id uint32, accountID int32, contractID uint32, clorderI
 	}
 	return ordStatus
 }
-func CQG_GetPosition(account string, accountID int32) *User {
-	if cqgAccount, ok := cqgAccountMap.accountMap[account]; ok {
-		if user, ok := cqgAccount.userMap[accountID]; ok {
-			return user
-		}
+func CQG_GetPosition(accountID int32) *User {
+	if user, ok := userMap.getUser(accountID); ok {
+		return user
 	}
 	return nil
 }
-func CQG_GetWorkingOrder(account string, accountID int32) *User {
-	if cqgAccount, ok := cqgAccountMap.accountMap[account]; ok {
-		if user, ok := cqgAccount.userMap[accountID]; ok {
-			return user
-		}
+func CQG_GetWorkingOrder(accountID int32) *User {
+	if user, ok := userMap.getUser(accountID); ok {
+		return user
 	}
 	return nil
 }
-func CQG_GetCollateralInfo(account string, accountID int32) *User {
-	if cqgAccount, ok := cqgAccountMap.accountMap[account]; ok {
-		if user, ok := cqgAccount.userMap[accountID]; ok {
-			return user
-		}
+func CQG_GetCollateralInfo(accountID int32) *User {
+	if user, ok := userMap.getUser(accountID); ok {
+		return user
 	}
 	return nil
 }
 func CQG_CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorID string, clorID string, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 	var c = make(chan NewOrderCancelUpdateStatus)
-	user,_ := userMap.getUser(accountID)
-	CancelOrderRequest(id, orderID, user.username,accountID, oldClorID, clorID, utc, c)
+	user, _ := userMap.getUser(accountID)
+	CancelOrderRequest(id, orderID, user.username, accountID, oldClorID, clorID, utc, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -137,9 +127,9 @@ func CQG_CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorI
 func CQG_UpdateOrderRequest(id uint32, orderID string, accountID int32, oldClorID string, clorID string, utc int64,
 	qty uint32, limitPrice int32, stopPrice int32, duration uint32, ) (ordStatus NewOrderCancelUpdateStatus) {
 
-	user,_ := userMap.getUser(accountID)// get the user associated
+	user, _ := userMap.getUser(accountID) // get the user associated
 	var c = make(chan NewOrderCancelUpdateStatus)
-	UpdateOrderRequest(id, orderID, user.username,accountID, oldClorID, clorID, utc, qty, limitPrice, stopPrice, duration, c)
+	UpdateOrderRequest(id, orderID, user.username, accountID, oldClorID, clorID, utc, qty, limitPrice, stopPrice, duration, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -150,7 +140,7 @@ func CQG_UpdateOrderRequest(id uint32, orderID string, accountID int32, oldClorI
 	return ordStatus
 }
 
-func SendMessage(message *ClientMsg,connWithLock ConnWithLock) {
+func SendMessage(message *ClientMsg, connWithLock ConnWithLock) {
 	connWithLock.rwmux.Lock()
 	out, _ := proto.Marshal(message)
 	err := connWithLock.conn.WriteMessage(websocket.BinaryMessage, []byte(out))
@@ -162,7 +152,8 @@ func SendMessage(message *ClientMsg,connWithLock ConnWithLock) {
 	}
 	connWithLock.rwmux.Unlock()
 }
-func RecvMessage(connWithLock ConnWithLock) {
+func RecvMessage(connWithLock ConnWithLock, username string) {
+	metadataMap := cqgAccountMap.accountMap[username].metadataMap
 	for {
 
 		msg := RecvMessageOne(connWithLock)
@@ -211,13 +202,11 @@ func RecvMessage(connWithLock ConnWithLock) {
 								userPosition.subPositionMap = make(map[int32]*OpenPosition)
 								userPosition.contractID = position.GetContractId()
 
-								for id, metadata := range metadataMap {
-									if id == userPosition.contractID {
-										userPosition.symbol = metadata.GetTitle()
-										userPosition.productDescription = metadata.GetDescription()
-										userPosition.priceScale = metadata.GetCorrectPriceScale()
-										userPosition.tickValue = metadata.GetTickValue()
-									}
+								if metadata, ok := metadataMap[userPosition.contractID]; ok {
+									userPosition.symbol = metadata.GetTitle()
+									userPosition.productDescription = metadata.GetDescription()
+									userPosition.priceScale = metadata.GetCorrectPriceScale()
+									userPosition.tickValue = metadata.GetTickValue()
 								}
 
 								short := position.GetIsShortOpenPosition()
@@ -251,13 +240,11 @@ func RecvMessage(connWithLock ConnWithLock) {
 								userPosition.subPositionMap = make(map[int32]*OpenPosition)
 								userPosition.contractID = position.GetContractId()
 
-								for id, metadata := range metadataMap {
-									if id == userPosition.contractID {
-										userPosition.symbol = metadata.GetTitle()
-										userPosition.productDescription = metadata.GetDescription()
-										userPosition.priceScale = metadata.GetCorrectPriceScale()
-										userPosition.tickValue = metadata.GetTickValue()
-									}
+								if metadata, ok := metadataMap[userPosition.contractID]; ok {
+									userPosition.symbol = metadata.GetTitle()
+									userPosition.productDescription = metadata.GetDescription()
+									userPosition.priceScale = metadata.GetCorrectPriceScale()
+									userPosition.tickValue = metadata.GetTickValue()
 								}
 
 								short := position.GetIsShortOpenPosition()
@@ -317,25 +304,22 @@ func RecvMessage(connWithLock ConnWithLock) {
 							clorIDTransaction := orderStatus.GetTransactionStatus()[0].GetClOrderId()
 							switch TransactionStatus_Status_name[int32(orderStatus.GetTransactionStatus()[0].GetStatus())] {
 							case TransactionStatus_REJECTED.String():
-								for j := range newOrderList {
-									noq := newOrderList[j]
-									if noq.clorderID == clorIDTransaction {
-										noq.status = "rejected"
-										noq.reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
-										noq.channel <- noq
-										newOrderList = append(newOrderList[:j], newOrderList[j+1:]...)
-										break
-									}
+								//noq := newOrderList[j]
+								if noq, ok := newOrderMap.Load(clorIDTransaction); ok {
+									noq, _ := noq.(NewOrderCancelUpdateStatus)
+									noq.status = "rejected"
+									noq.reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
+									noq.channel <- noq
+									newOrderMap.Delete(clorIDTransaction)
+									break
 								}
 							case TransactionStatus_ACK_PLACE.String():
 								clorIDOrder := orderStatus.GetOrder().GetClOrderId()
-								for j := range newOrderList {
-									noq := &newOrderList[j]
-									if noq.clorderID == clorIDOrder {
-										noq.status = "ok"
-										noq.channel <- *noq
-										newOrderList = append(newOrderList[:j], newOrderList[j+1:]...)
-									}
+								if noq, ok := newOrderMap.Load(clorIDOrder); ok {
+									noq, _ := noq.(NewOrderCancelUpdateStatus)
+									noq.status = "ok"
+									noq.channel <- noq
+									newOrderMap.Delete(clorIDOrder)
 								}
 								//Update Working orders
 								accountID := orderStatus.GetOrder().GetAccountId()
@@ -358,13 +342,11 @@ func RecvMessage(connWithLock ConnWithLock) {
 								wo.sideNum = orderStatus.GetOrder().GetSide()
 								wo.side = Order_Side_name[int32(wo.sideNum)]
 
-								for _, metadata := range metadataMap {
-									if metadata.GetContractId() == wo.contractID {
-										wo.symbol = metadata.GetTitle()
-										wo.productDescription = metadata.GetDescription()
-										wo.priceScale = metadata.GetCorrectPriceScale()
-										wo.price = float64(price) * metadata.GetCorrectPriceScale()
-									}
+								if metadata, ok := metadataMap[wo.contractID]; ok {
+									wo.symbol = metadata.GetTitle()
+									wo.productDescription = metadata.GetDescription()
+									wo.priceScale = metadata.GetCorrectPriceScale()
+									wo.price = float64(price) * metadata.GetCorrectPriceScale()
 								}
 
 								if user, ok := userMap.getUser(accountID); ok {
@@ -387,20 +369,17 @@ func RecvMessage(connWithLock ConnWithLock) {
 										}
 									}
 								}
-								//Update Working orders
 								//fillQuantity := orderStatus.GetFillQty()
 								//fillPrice := orderStatus.GetAvgFillPrice()
 								// Notification here
 
 							case TransactionStatus_ACK_CANCEL.String():
-								for j := range cancelOrderList {
-									coq := &cancelOrderList[j]
-									if coq.clorderID == clorIDTransaction {
-										coq.status = "ok"
-										coq.channel <- *coq
-										cancelOrderList = append(cancelOrderList[:j], cancelOrderList[j+1:]...)
+								if coq, ok := cancelOrderMap.Load(clorIDTransaction); ok {
+									coq, _ := coq.(NewOrderCancelUpdateStatus)
+									coq.status = "ok"
+									coq.channel <- coq
+									cancelOrderMap.Delete(clorIDTransaction)
 
-									}
 								}
 								//Update Working orders
 								chainOrderID := orderStatus.GetChainOrderId()
@@ -414,25 +393,21 @@ func RecvMessage(connWithLock ConnWithLock) {
 									}
 								}
 							case TransactionStatus_REJECT_CANCEL.String():
-								for j := range cancelOrderList {
-									coq := &cancelOrderList[j]
-									if coq.clorderID == clorIDTransaction {
-										coq.status = "rejected"
-										coq.reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
-										coq.channel <- *coq
-										cancelOrderList = append(cancelOrderList[:j], cancelOrderList[j+1:]...)
+								if coq, ok := cancelOrderMap.Load(clorIDTransaction); ok {
+									coq, _ := coq.(NewOrderCancelUpdateStatus)
+									coq.status = "rejected"
+									coq.reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
+									coq.channel <- coq
+									cancelOrderMap.Delete(clorIDTransaction)
 
-									}
 								}
 							case TransactionStatus_ACK_MODIFY.String():
 								clorIDOrder := orderStatus.GetOrder().GetClOrderId()
-								for j := range updateOrderList {
-									moq := &updateOrderList[j]
-									if moq.clorderID == clorIDOrder {
-										moq.status = "ok"
-										moq.channel <- *moq
-										updateOrderList = append(updateOrderList[:j], updateOrderList[j+1:]...)
-									}
+								if moq, ok := updateOrderMap.Load(clorIDOrder); ok {
+									moq, _ := moq.(NewOrderCancelUpdateStatus)
+									moq.status = "ok"
+									moq.channel <- moq
+									updateOrderMap.Delete(clorIDOrder)
 								}
 								//update working order
 								//account := orderStatus.GetEnteredByUser()
@@ -457,18 +432,56 @@ func RecvMessage(connWithLock ConnWithLock) {
 									}
 								}
 							case TransactionStatus_REJECT_MODIFY.String():
-								for j := range updateOrderList {
-									moq := &updateOrderList[j]
-									if moq.clorderID == clorIDTransaction {
-										moq.status = "rejected"
-										moq.reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
-										moq.channel <- *moq
-										updateOrderList = append(updateOrderList[:j], updateOrderList[j+1:]...)
-									}
+								if moq, ok := updateOrderMap.Load(clorIDTransaction); ok {
+									moq, _ := moq.(NewOrderCancelUpdateStatus)
+									moq.status = "rejected"
+									moq.reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
+									moq.channel <- moq
+									updateOrderMap.Delete(clorIDTransaction)
+								}
+							case TransactionStatus_ACTIVEAT.String():
+								clorIDOrder := orderStatus.GetOrder().GetClOrderId()
+								if noq, ok := newOrderMap.Load(clorIDOrder); ok {
+									noq, _ := noq.(NewOrderCancelUpdateStatus)
+									noq.status = "ok"
+									noq.channel <- noq
+									newOrderMap.Delete(clorIDOrder)
+								}
+								//Update Working orders
+								accountID := orderStatus.GetOrder().GetAccountId()
+
+								var wo WorkingOrder
+								wo.orderID = orderStatus.GetOrderId()
+								wo.chainOrderID = orderStatus.GetChainOrderId()
+								wo.clorID = orderStatus.GetOrder().GetClOrderId()
+								wo.contractID = orderStatus.GetOrder().GetContractId()
+								wo.quantity = orderStatus.GetRemainingQty()
+								wo.ordType = orderStatus.GetOrder().GetOrderType()
+								wo.timeInForce = orderStatus.GetOrder().GetDuration()
+
+								var price int32
+								if (wo.ordType == 2 || wo.ordType == 4 ) {
+									price = orderStatus.GetOrder().GetLimitPrice()
+								} else if (wo.ordType == 3 || wo.ordType == 4 ) {
+									price = orderStatus.GetOrder().GetStopPrice()
+								}
+								wo.sideNum = orderStatus.GetOrder().GetSide()
+								wo.side = Order_Side_name[int32(wo.sideNum)]
+
+								if metadata, ok := metadataMap[wo.contractID]; ok {
+									wo.symbol = metadata.GetTitle()
+									wo.productDescription = metadata.GetDescription()
+									wo.priceScale = metadata.GetCorrectPriceScale()
+									wo.price = float64(price) * metadata.GetCorrectPriceScale()
+								}
+
+								if user, ok := userMap.getUser(accountID); ok {
+									//fmt.Println("append new order to working")
+									user.workingOrderList = append(user.workingOrderList, wo)
 								}
 							}
 						} else { //Trade subscription snapshot
-							if orderStatus.GetStatus() == 3 {
+							if orderStatus.GetStatus() == 3 || orderStatus.GetStatus() == 11 {
 								fmt.Println("in order status snapshot")
 								//account := orderStatus.GetEnteredByUser()
 								accountID := orderStatus.GetOrder().GetAccountId()
@@ -491,13 +504,11 @@ func RecvMessage(connWithLock ConnWithLock) {
 								wo.sideNum = orderStatus.GetOrder().GetSide()
 								wo.side = Order_Side_name[int32(wo.sideNum)]
 
-								for _, metadata := range metadataMap {
-									if metadata.GetContractId() == wo.contractID {
-										wo.symbol = metadata.GetTitle()
-										wo.productDescription = metadata.GetDescription()
-										wo.priceScale = metadata.GetCorrectPriceScale()
-										wo.price = float64(price) * wo.priceScale
-									}
+								if metadata, ok := metadataMap[wo.contractID]; ok {
+									wo.symbol = metadata.GetTitle()
+									wo.productDescription = metadata.GetDescription()
+									wo.priceScale = metadata.GetCorrectPriceScale()
+									wo.price = float64(price) * wo.priceScale
 								}
 
 								if user, ok := userMap.getUser(accountID); ok {
@@ -509,15 +520,15 @@ func RecvMessage(connWithLock ConnWithLock) {
 				case "collateral_status":
 					for _, col := range msg.GetCollateralStatus() {
 						accountID := col.GetAccountId()
-							if user,ok := userMap.getUser(accountID) ; ok {
-								user.collateralInfo.currency = col.GetCurrency()
-								user.collateralInfo.marginCredit = col.GetMarginCredit()
-								user.collateralInfo.mvf = col.GetMvf()
-								user.collateralInfo.mvo = col.GetMvo()
-								user.collateralInfo.upl = col.GetOte()
-								user.collateralInfo.purchasingPower = col.GetPurchasingPower()
-								user.collateralInfo.totalMargin = col.GetTotalMargin()
-							}
+						if user, ok := userMap.getUser(accountID); ok {
+							user.collateralInfo.currency = col.GetCurrency()
+							user.collateralInfo.marginCredit = col.GetMarginCredit()
+							user.collateralInfo.mvf = col.GetMvf()
+							user.collateralInfo.mvo = col.GetMvo()
+							user.collateralInfo.upl = col.GetOte()
+							user.collateralInfo.purchasingPower = col.GetPurchasingPower()
+							user.collateralInfo.totalMargin = col.GetTotalMargin()
+						}
 					}
 
 				case "trade_subscription_status":
@@ -555,7 +566,7 @@ func RecvMessageOne(connWithLock ConnWithLock) (msg *ServerMsg) {
 	}
 	msg = &ServerMsg{}
 	proto.Unmarshal(message, msg)
-	//fmt.Printf("recv: %s \n", msg)
+	fmt.Printf("recv: %s \n", msg)
 	connWithLock.rwmux.RUnlock()
 	return msg
 }
@@ -615,13 +626,14 @@ func (cam CQGAccountMap) removeAccount(account *CQGAccount) {
 type CQGAccount struct {
 	username     string
 	password     string
+	metadataMap  map[uint32]*ContractMetadata
 	userMap      map[int32]*User
 	mux          sync.Mutex
 	connWithLock ConnWithLock
 }
 
 func NewCQGAccount() *CQGAccount {
-	return &CQGAccount{userMap: make(map[int32]*User)}
+	return &CQGAccount{userMap: make(map[int32]*User), metadataMap: make(map[uint32]*ContractMetadata)}
 }
 func (cqgAccount *CQGAccount) addUser(user *User) {
 	cqgAccount.mux.Lock()
@@ -654,6 +666,13 @@ type User struct {
 	positionList     []Position
 	collateralInfo   CollateralInfo
 }
+
+func (user User) getMetadataMap(accountID int32, id uint32) *ContractMetadata {
+	u, _ := userMap.getUser(accountID)
+	cqgAccount := cqgAccountMap.accountMap[u.username]
+	return cqgAccount.metadataMap[id]
+}
+
 type ConnWithLock struct {
 	rwmux sync.RWMutex
 	conn  *websocket.Conn

@@ -27,7 +27,7 @@ func NewOrderRequest(id uint32,username string, accountID int32, contractID uint
 	var noq NewOrderCancelUpdateStatus
 	noq.clorderID = clorderID
 	noq.channel = c
-	newOrderList = append(newOrderList, noq)
+	newOrderMap.Store(clorderID,noq)
 
 	clientMsg := &ClientMsg{
 		OrderRequest: []*OrderRequest{
@@ -62,7 +62,7 @@ func CancelOrderRequest(id uint32, orderID string, username string, accountID in
 	var coq NewOrderCancelUpdateStatus
 	coq.clorderID = clorderID
 	coq.channel = c
-	cancelOrderList = append(cancelOrderList, coq)
+	cancelOrderMap.Store(clorderID,coq)
 
 	clientMsg := &ClientMsg{
 		OrderRequest: []*OrderRequest{
@@ -88,7 +88,7 @@ func UpdateOrderRequest(id uint32, orderID string,username string, accountID int
 	var moq NewOrderCancelUpdateStatus
 	moq.clorderID = clorderID
 	moq.channel = c
-	updateOrderList = append(updateOrderList, moq)
+	updateOrderMap.Store(clorderID,moq)
 
 	clientMsg := &ClientMsg{
 		OrderRequest: []*OrderRequest{

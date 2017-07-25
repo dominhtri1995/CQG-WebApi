@@ -39,7 +39,7 @@ Loop:
 		switch action {
 		case "1":
 			fmt.Println("Position :")
-			user := CQG_GetPosition("VTechapi", 16958204)
+			user := CQG_GetPosition( 16958204)
 			if user != nil {
 				for _, po := range user.positionList {
 					fmt.Printf("%s %d %s at %f \n", po.side, po.quantity, po.symbol, po.price)
@@ -60,7 +60,7 @@ Loop:
 			}
 		case "3":
 			fmt.Println("Working Order:")
-			user := CQG_GetWorkingOrder("VTechapi", 16958204) //return a list of working order
+			user := CQG_GetWorkingOrder(16958204) //return a list of working order
 			if user != nil {
 				for _, wo := range user.workingOrderList {
 					fmt.Printf("%s %d %s at %f \n", wo.side, wo.quantity, wo.symbol, wo.price)
@@ -69,7 +69,7 @@ Loop:
 		case "4":
 			fmt.Println("The answer is Tri Do :3")
 		case "5":
-			user := CQG_GetWorkingOrder("VTechapi", 16958204) //return a list of working order
+			user := CQG_GetWorkingOrder(16958204) //return a list of working order
 			if user != nil && len(user.workingOrderList) > 0 {
 				wo := user.workingOrderList[0]
 				ordStatus := CQG_CancelOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp())
@@ -83,7 +83,7 @@ Loop:
 				}
 			}
 		case "6":
-			user := CQG_GetWorkingOrder("VTechapi", 16958204) //return a list of working order
+			user := CQG_GetWorkingOrder(16958204) //return a list of working order
 			if user != nil && len(user.workingOrderList) > 0 {
 				for _, wo := range user.workingOrderList {
 					ordStatus := CQG_CancelOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp())
@@ -99,7 +99,7 @@ Loop:
 
 			}
 		case "7":
-			user := CQG_GetWorkingOrder("VTechapi", 16958204) //return a list of working order
+			user := CQG_GetWorkingOrder( 16958204) //return a list of working order
 			if user != nil && len(user.workingOrderList) > 0 {
 				wo := user.workingOrderList[0]
 				fmt.Println(int32(wo.price / wo.priceScale))
@@ -115,7 +115,7 @@ Loop:
 				}
 			}
 		case "8":
-			user := CQG_GetCollateralInfo("VTechapi", 16958204)
+			user := CQG_GetCollateralInfo(16958204)
 			if user != nil {
 				o := reflect.TypeOf(user.collateralInfo)
 				v := reflect.ValueOf(user.collateralInfo)
