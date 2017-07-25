@@ -1,41 +1,35 @@
 package main
 
 import (
-	"flag"
-	"net/url"
 	"os"
-	"os/signal"
-
-	"github.com/gorilla/websocket"
-	"log"
 	"bufio"
 	"fmt"
 	"github.com/rs/xid"
 	"reflect"
-)
 
-var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
-var conn *websocket.Conn
+)
+//var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
+//var conn *websocket.Conn
 var err error
 
 func main() {
-	flag.Parse()
-	log.SetFlags(0)
-
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
-	u := url.URL{Scheme: "wss", Host: *addr, Path: ""}
-	log.Printf("connecting to %s", u.String())
-
-	conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		log.Fatal("dial:", err)
-	}
-	defer conn.Close()
-	go RecvMessage()
-
-	CQG_SendLogonMessage("VTechapi", 16958204, "pass", "WebApiTest", "java-client")
-
+	//flag.Parse()
+	//log.SetFlags(0)
+	//
+	//interrupt := make(chan os.Signal, 1)
+	//signal.Notify(interrupt, os.Interrupt)
+	//u := url.URL{Scheme: "wss", Host: *addr, Path: ""}
+	//log.Printf("connecting to %s", u.String())
+	//
+	//conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+	//if err != nil {
+	//	log.Fatal("dial:", err)
+	//}
+	//defer conn.Close()
+	//go RecvMessage()
+	//
+	//CQG_SendLogonMessage("VTechapi", 16958204, "pass", "WebApiTest", "java-client")
+	CQG_StartWebApi("VTechapi","pass" ,16958204)
 Loop:
 	for {
 		action, err := QueryAction()
@@ -54,7 +48,7 @@ Loop:
 			}
 
 		case "2":
-			CQG_InformationRequest("BZU7", 1)
+			CQG_InformationRequest("BZU7", 1,"VTechapi")
 			ordStatus := CQG_NewOrderRequest(1, 16958204, 1, xid.New().String(), 2, 4700, 2, 1, 1, false, makeTimestamp())
 			if (ordStatus.status == "ok") {
 				fmt.Println("Order Placed Successfully")

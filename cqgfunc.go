@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/rs/xid"
 )
 
-func CQG_OrderSubscription(id uint32, subscribe bool) {
+func CQG_OrderSubscription(id uint32, subscribe bool, username string) {
 	var arr []uint32
 	arr = append(arr, 1)
 	arr = append(arr,2)
@@ -19,25 +18,11 @@ func CQG_OrderSubscription(id uint32, subscribe bool) {
 			},
 		},
 	}
-	SendMessage(clientMsg)
+	SendMessage(clientMsg, cqgAccountMap.accountMap[username].connWithLock)
 	_,_,_= <-chanOrderSubscription, <-chanPositionSubcription , <-chanCollateralSubscription
 	fmt.Println("Subscription done")
 }
-func CQG_PositionSubscription(id uint32, subscribe bool) {
-	var arr []uint32
-	arr = append(arr, 2)
-	clientMsg := &ClientMsg{
-		TradeSubscription: []*TradeSubscription{
-			{
-				Id:                &id,
-				Subscribe:         &subscribe,
-				SubscriptionScope: arr,
-			},
-		},
-	}
-	SendMessage(clientMsg)
-}
-func NewOrderRequest(id uint32, accountID int32, contractID uint32, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64, c chan NewOrderCancelUpdateStatus) {
+func NewOrderRequest(id uint32,username string, accountID int32, contractID uint32, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64, c chan NewOrderCancelUpdateStatus) {
 
 	var noq NewOrderCancelUpdateStatus
 	noq.clorderID = clorderID
@@ -71,9 +56,9 @@ func NewOrderRequest(id uint32, accountID int32, contractID uint32, clorderID st
 		clientMsg.GetOrderRequest()[0].GetNewOrder().GetOrder().StopPrice = &price
 	}
 
-	SendMessage(clientMsg)
+	SendMessage(clientMsg, cqgAccountMap.accountMap[username].connWithLock)
 }
-func CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorID string, clorderID string, utc int64, c chan NewOrderCancelUpdateStatus) {
+func CancelOrderRequest(id uint32, orderID string, username string, accountID int32, oldClorID string, clorderID string, utc int64, c chan NewOrderCancelUpdateStatus) {
 	var coq NewOrderCancelUpdateStatus
 	coq.clorderID = clorderID
 	coq.channel = c
@@ -93,9 +78,9 @@ func CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorID st
 			},
 		},
 	}
-	SendMessage(clientMsg)
+	SendMessage(clientMsg,cqgAccountMap.accountMap[username].connWithLock)
 }
-func UpdateOrderRequest(id uint32, orderID string, accountID int32, oldClorderID string, clorderID string, utc int64,
+func UpdateOrderRequest(id uint32, orderID string,username string, accountID int32, oldClorderID string, clorderID string, utc int64,
 	qty uint32, limitPrice int32, stopPrice int32, duration uint32,c chan NewOrderCancelUpdateStatus, ) {
 	/* Pass in qty,limitprice, stopprice and duration if you want to change these elements.
 	// Otherwise pass in 0
@@ -131,9 +116,9 @@ func UpdateOrderRequest(id uint32, orderID string, accountID int32, oldClorderID
 	if (duration != 0) {
 		clientMsg.GetOrderRequest()[0].GetModifyOrder().Qty = &duration
 	}
-	SendMessage(clientMsg)
+	SendMessage(clientMsg,cqgAccountMap.accountMap[username].connWithLock)
 }
-func CQG_InformationRequest(symbol string, id uint32) {
+func CQG_InformationRequest(symbol string, id uint32,username string) {
 	clientMsg := &ClientMsg{
 		InformationRequest: []*InformationRequest{
 			{Id: &id,
@@ -143,10 +128,10 @@ func CQG_InformationRequest(symbol string, id uint32) {
 			},
 		},
 	}
-	SendMessage(clientMsg)
+	SendMessage(clientMsg, cqgAccountMap.accountMap[username].connWithLock)
 	_ = <-chanInformationReport
 }
-func CQG_SendLogonMessage(username string, accountID int32, password string, clientAppID string, clientVersion string) {
+func CQG_SendLogonMessage(username string, accountID int32, password string, clientAppID string, clientVersion string) *ServerMsg {
 	LogonMessage := &ClientMsg{
 		Logon: &Logon{UserName: &username,
 			Password:           &password,
@@ -154,18 +139,17 @@ func CQG_SendLogonMessage(username string, accountID int32, password string, cli
 			ClientVersion:      &clientVersion},
 	}
 
-	SendMessage(LogonMessage)
+	SendMessage(LogonMessage,cqgAccountMap.accountMap[username].connWithLock)
 	msg := <-chanLogon
-	if msg.LogonResult.GetResultCode() == 0 {
-		fmt.Printf("Logon Successfully!!! Let's make America great again \n")
-		var user User
-		user.username = username
-		user.accountID= accountID
-		userLogonList = append(userLogonList, user)
+	return msg
 
-		CQG_OrderSubscription(hash(xid.New().String()), true)
-	} else {
-		fmt.Printf("Logon failed !! It's Obama's fault \n")
+
+}
+func CQG_SendLogoffMessage(reason string,username string){
+	LogoffMessage := &ClientMsg{
+		Logoff: &Logoff{
+			TextMessage: &reason,
+		},
 	}
-
+	SendMessage(LogoffMessage, cqgAccountMap.accountMap[username].connWithLock)
 }

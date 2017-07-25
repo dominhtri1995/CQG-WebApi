@@ -8,10 +8,17 @@ import (
 	"reflect"
 	"github.com/golang/protobuf/descriptor"
 	"github.com/gorilla/websocket"
+	"github.com/rs/xid"
+	"flag"
+	"log"
+	"net/url"
+	"sync"
 )
 
-var userLogonList []User
+var cqgAccountMap = NewCQGAccountMap()
 var metadataMap = make(map[uint32]*ContractMetadata)
+var userMap = NewUserMap()
+
 var newOrderList []NewOrderCancelUpdateStatus
 var cancelOrderList []NewOrderCancelUpdateStatus
 var updateOrderList []NewOrderCancelUpdateStatus
@@ -22,9 +29,65 @@ var chanOrderSubscription = make(chan *ServerMsg)
 var chanPositionSubcription = make(chan *ServerMsg)
 var chanCollateralSubscription = make(chan *ServerMsg)
 
+func CQG_StartWebApi(username string, password string, accountID int32) int {
+
+	cqgAccount := NewCQGAccount()
+	if _, ok := cqgAccountMap.accountMap[username]; !ok {
+		err := startNewConnection(cqgAccount)
+
+		if err == nil {
+			return -1
+		}
+		if(cqgAccount.connWithLock.conn == nil){
+			fmt.Println("conn still null")
+		}else{
+			fmt.Println("conn not null anymore")
+		}
+		cqgAccount.username = username
+		cqgAccount.password = password
+		cqgAccountMap.addAccount(cqgAccount)
+		msg := CQG_SendLogonMessage(username, accountID, password, "WebApiTest", "java-client")
+		if msg.LogonResult.GetResultCode() == 0 {
+			fmt.Printf("Logon Successfully!!! Let's make America great again \n")
+		} else {
+			fmt.Printf("Logon failed !! It's Obama's fault \n")
+			return -1
+		}
+
+	} else {
+		cqgAccount = cqgAccountMap.accountMap[username]
+	}
+
+	var user User
+	user.username = username
+	user.accountID = accountID
+	cqgAccount.addUser(&user)
+	userMap.addUser(&user)
+	CQG_OrderSubscription(hash(xid.New().String()), true,username)
+
+	return 0
+}
+func startNewConnection(cqgAccount *CQGAccount) *CQGAccount {
+	var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
+	flag.Parse()
+	log.SetFlags(0)
+
+	u := url.URL{Scheme: "wss", Host: *addr, Path: ""}
+	log.Printf("connecting to %s", u.String())
+
+	cqgAccount.connWithLock.conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		log.Fatal("dial:", err)
+		return nil
+	}
+	go RecvMessage(cqgAccount.connWithLock)
+
+	return cqgAccount
+}
 func CQG_NewOrderRequest(id uint32, accountID int32, contractID uint32, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 	var c = make(chan NewOrderCancelUpdateStatus)
-	NewOrderRequest(id, accountID, contractID, clorderID, orderType, price, duration, side, qty, is_manual, utc, c)
+	user,_ := userMap.getUser(accountID)
+	NewOrderRequest(id,user.username ,accountID, contractID, clorderID, orderType, price, duration, side, qty, is_manual, utc, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -35,32 +98,33 @@ func CQG_NewOrderRequest(id uint32, accountID int32, contractID uint32, clorderI
 	return ordStatus
 }
 func CQG_GetPosition(account string, accountID int32) *User {
-	for _, user := range userLogonList {
-		if user.username == account && user.accountID == accountID {
-			return &user
+	if cqgAccount, ok := cqgAccountMap.accountMap[account]; ok {
+		if user, ok := cqgAccount.userMap[accountID]; ok {
+			return user
 		}
 	}
 	return nil
 }
 func CQG_GetWorkingOrder(account string, accountID int32) *User {
-	for _, user := range userLogonList {
-		if user.username == account && user.accountID == accountID {
-			return &user
+	if cqgAccount, ok := cqgAccountMap.accountMap[account]; ok {
+		if user, ok := cqgAccount.userMap[accountID]; ok {
+			return user
 		}
 	}
 	return nil
 }
 func CQG_GetCollateralInfo(account string, accountID int32) *User {
-	for _, user := range userLogonList {
-		if user.username == account && user.accountID == accountID {
-			return &user
+	if cqgAccount, ok := cqgAccountMap.accountMap[account]; ok {
+		if user, ok := cqgAccount.userMap[accountID]; ok {
+			return user
 		}
 	}
 	return nil
 }
 func CQG_CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorID string, clorID string, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 	var c = make(chan NewOrderCancelUpdateStatus)
-	CancelOrderRequest(id, orderID, accountID, oldClorID, clorID, utc, c)
+	user,_ := userMap.getUser(accountID)
+	CancelOrderRequest(id, orderID, user.username,accountID, oldClorID, clorID, utc, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -73,8 +137,9 @@ func CQG_CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorI
 func CQG_UpdateOrderRequest(id uint32, orderID string, accountID int32, oldClorID string, clorID string, utc int64,
 	qty uint32, limitPrice int32, stopPrice int32, duration uint32, ) (ordStatus NewOrderCancelUpdateStatus) {
 
+	user,_ := userMap.getUser(accountID)// get the user associated
 	var c = make(chan NewOrderCancelUpdateStatus)
-	UpdateOrderRequest(id, orderID, accountID, oldClorID, clorID, utc, qty, limitPrice, stopPrice, duration, c)
+	UpdateOrderRequest(id, orderID, user.username,accountID, oldClorID, clorID, utc, qty, limitPrice, stopPrice, duration, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -85,20 +150,22 @@ func CQG_UpdateOrderRequest(id uint32, orderID string, accountID int32, oldClorI
 	return ordStatus
 }
 
-func SendMessage(message *ClientMsg) {
+func SendMessage(message *ClientMsg,connWithLock ConnWithLock) {
+	connWithLock.rwmux.Lock()
 	out, _ := proto.Marshal(message)
-	err := conn.WriteMessage(websocket.BinaryMessage, []byte(out))
+	err := connWithLock.conn.WriteMessage(websocket.BinaryMessage, []byte(out))
 	if err != nil {
 		fmt.Println("error:", err)
 		return
 	} else {
 		fmt.Printf("send: %s\n", *message)
 	}
+	connWithLock.rwmux.Unlock()
 }
-func RecvMessage() {
+func RecvMessage(connWithLock ConnWithLock) {
 	for {
 
-		msg := RecvMessageOne()
+		msg := RecvMessageOne(connWithLock)
 		if (msg == nil) {
 			continue
 		}
@@ -135,7 +202,6 @@ func RecvMessage() {
 						fmt.Println("Error Information Request")
 					}
 				case "position_status":
-					fmt.Println("in position_status")
 					for _, position := range msg.GetPositionStatus() {
 						//update position
 						if position.GetIsSnapshot() == true { // Snapshot
@@ -170,12 +236,9 @@ func RecvMessage() {
 								userPosition.price /= float64(userPosition.quantity)
 
 								//add to Position list of user
-								for k := range userLogonList {
-									user := &userLogonList[k]
-									if userLogonList[k].accountID == accountID {
-										fmt.Println("add 1 position ", userPosition.symbol, userPosition.contractID)
-										user.positionList = append(user.positionList, userPosition)
-									}
+								if user, ok := userMap.getUser(accountID); ok {
+									fmt.Println("add 1 position ", userPosition.symbol, userPosition.contractID)
+									user.positionList = append(user.positionList, userPosition)
 								}
 
 							} else {
@@ -207,48 +270,44 @@ func RecvMessage() {
 								}
 
 								//add to Position list of user
-								for k := range userLogonList {
-									user := &userLogonList[k]
-									if userLogonList[k].accountID == accountID {
-										match := false
-										for positionIndex := range user.positionList {
-											if user.positionList[positionIndex].contractID == userPosition.contractID { //COntract already exist
-												for _, openPosition := range position.GetOpenPosition() {
-													if oldOpenPosition, ok := user.positionList[positionIndex].subPositionMap[openPosition.GetId()]; ok {
-														oldOpenPosition.Qty = openPosition.Qty
-														oldOpenPosition.Price = openPosition.Price
+								if user, ok := userMap.getUser(accountID); ok {
+									match := false
+									for positionIndex := range user.positionList {
+										if user.positionList[positionIndex].contractID == userPosition.contractID { //COntract already exist
+											for _, openPosition := range position.GetOpenPosition() { //Update open_position/subposition
+												if oldOpenPosition, ok := user.positionList[positionIndex].subPositionMap[openPosition.GetId()]; ok {
+													oldOpenPosition.Qty = openPosition.Qty
+													oldOpenPosition.Price = openPosition.Price
 
-													}else{
-														user.positionList[positionIndex].subPositionMap[openPosition.GetId()] = openPosition
-													}
+												} else { // add new open_position
+													user.positionList[positionIndex].subPositionMap[openPosition.GetId()] = openPosition
 												}
-												user.positionList[positionIndex].updatePriceAndQty()
-												user.positionList[positionIndex].side = userPosition.side
-												match = true
-												if user.positionList[positionIndex].quantity ==0{//remove position if qty =0 square position
-													user.positionList = append(user.positionList[:positionIndex],user.positionList[positionIndex+1:]...)
-													break
-												}
+											}
+											user.positionList[positionIndex].updatePriceAndQty()
+											user.positionList[positionIndex].side = userPosition.side
+											match = true
+											if user.positionList[positionIndex].quantity == 0 { //remove position if qty =0 square position
+												user.positionList = append(user.positionList[:positionIndex], user.positionList[positionIndex+1:]...)
+												break
+											}
 
-											}
 										}
-										if match == false { // new contract added to position
-											for _, openPosition := range position.GetOpenPosition() {
-												userPosition.quantity += openPosition.GetQty()
-												userPosition.price += openPosition.GetPrice() * float64(openPosition.GetQty())
-												userPosition.subPositionMap[openPosition.GetId()] = openPosition
-											}
-											//averaging out the price
-											userPosition.price /= float64(userPosition.quantity)
-											user.positionList = append(user.positionList, userPosition)
+									}
+									if match == false { // new contract added to position
+										for _, openPosition := range position.GetOpenPosition() {
+											userPosition.quantity += openPosition.GetQty()
+											userPosition.price += openPosition.GetPrice() * float64(openPosition.GetQty())
+											userPosition.subPositionMap[openPosition.GetId()] = openPosition
 										}
+										//averaging out the price
+										userPosition.price /= float64(userPosition.quantity)
+										user.positionList = append(user.positionList, userPosition)
 									}
 								}
 
 							} else {
 								continue
 							}
-
 						}
 					}
 
@@ -307,28 +366,23 @@ func RecvMessage() {
 										wo.price = float64(price) * metadata.GetCorrectPriceScale()
 									}
 								}
-								for k := range userLogonList {
-									user := &userLogonList[k]
-									if user.accountID == accountID {
-										//fmt.Println("append new order to working")
-										user.workingOrderList = append(user.workingOrderList, wo)
-									}
+
+								if user, ok := userMap.getUser(accountID); ok {
+									//fmt.Println("append new order to working")
+									user.workingOrderList = append(user.workingOrderList, wo)
 								}
 
 							case TransactionStatus_FILL.String():
 								accountID := orderStatus.GetOrder().GetAccountId()
 								chainOrderID := orderStatus.GetChainOrderId()
-								for j := range userLogonList {
-									user := &userLogonList[j]
-									if user.accountID == accountID {
-										for i := range user.workingOrderList {
-											wo := &user.workingOrderList[i]
-											if wo.chainOrderID == chainOrderID {
-												wo.quantity = orderStatus.GetRemainingQty()
-
-												if wo.quantity == 0 {
-													user.workingOrderList = append(user.workingOrderList[:i], user.workingOrderList[i+1:]...)
-												}
+								if user, ok := userMap.getUser(accountID); ok {
+									for i := range user.workingOrderList {
+										wo := &user.workingOrderList[i]
+										if wo.chainOrderID == chainOrderID {
+											wo.quantity = orderStatus.GetRemainingQty()
+											//fmt.Printf("%d left \n",wo.quantity)
+											if wo.quantity == 0 {
+												user.workingOrderList = append(user.workingOrderList[:i], user.workingOrderList[i+1:]...)
 											}
 										}
 									}
@@ -351,14 +405,11 @@ func RecvMessage() {
 								//Update Working orders
 								chainOrderID := orderStatus.GetChainOrderId()
 								accountID := orderStatus.GetOrder().GetAccountId()
-								for j := range userLogonList {
-									user := &userLogonList[j]
-									if user.accountID == accountID {
-										for k := range user.workingOrderList {
-											if user.workingOrderList[k].chainOrderID == chainOrderID {
-												user.workingOrderList = append(user.workingOrderList[:k], user.workingOrderList[k+1:]...)
-												break
-											}
+								if user, ok := userMap.getUser(accountID); ok {
+									for k := range user.workingOrderList {
+										if user.workingOrderList[k].chainOrderID == chainOrderID {
+											user.workingOrderList = append(user.workingOrderList[:k], user.workingOrderList[k+1:]...)
+											break
 										}
 									}
 								}
@@ -387,22 +438,20 @@ func RecvMessage() {
 								//account := orderStatus.GetEnteredByUser()
 								accountID := orderStatus.GetOrder().GetAccountId()
 								chainOrderID := orderStatus.GetChainOrderId()
-								for _, user := range userLogonList {
-									if user.accountID == accountID {
-										for k := range user.workingOrderList {
-											wo := &user.workingOrderList[k]
-											if wo.chainOrderID == chainOrderID {
-												wo.orderID = orderStatus.GetOrderId()
-												wo.clorID = orderStatus.GetOrder().GetClOrderId()
-												wo.quantity = orderStatus.GetRemainingQty()
-												wo.timeInForce = orderStatus.GetOrder().GetDuration()
-												ordType := orderStatus.GetOrder().GetOrderType()
+								if user, ok := userMap.getUser(accountID); ok {
+									for k := range user.workingOrderList {
+										wo := &user.workingOrderList[k]
+										if wo.chainOrderID == chainOrderID {
+											wo.orderID = orderStatus.GetOrderId()
+											wo.clorID = orderStatus.GetOrder().GetClOrderId()
+											wo.quantity = orderStatus.GetRemainingQty()
+											wo.timeInForce = orderStatus.GetOrder().GetDuration()
+											ordType := orderStatus.GetOrder().GetOrderType()
 
-												if (ordType == 2 || wo.ordType == 4) {
-													wo.price = float64(orderStatus.GetOrder().GetLimitPrice()) * wo.priceScale
-												} else if (wo.ordType == 3 || wo.ordType == 4 ) {
-													wo.price = float64(orderStatus.GetOrder().GetStopPrice()) * wo.priceScale
-												}
+											if (ordType == 2 || wo.ordType == 4) {
+												wo.price = float64(orderStatus.GetOrder().GetLimitPrice()) * wo.priceScale
+											} else if (wo.ordType == 3 || wo.ordType == 4 ) {
+												wo.price = float64(orderStatus.GetOrder().GetStopPrice()) * wo.priceScale
 											}
 										}
 									}
@@ -451,10 +500,8 @@ func RecvMessage() {
 									}
 								}
 
-								for k := range userLogonList {
-									if userLogonList[k].accountID == accountID {
-										userLogonList[k].workingOrderList = append(userLogonList[k].workingOrderList, wo)
-									}
+								if user, ok := userMap.getUser(accountID); ok {
+									user.workingOrderList = append(user.workingOrderList, wo)
 								}
 							}
 						}
@@ -462,17 +509,15 @@ func RecvMessage() {
 				case "collateral_status":
 					for _, col := range msg.GetCollateralStatus() {
 						accountID := col.GetAccountId()
-						for k := range userLogonList {
-							if userLogonList[k].accountID == accountID {
-								userLogonList[k].collateralInfo.currency = col.GetCurrency()
-								userLogonList[k].collateralInfo.marginCredit = col.GetMarginCredit()
-								userLogonList[k].collateralInfo.mvf = col.GetMvf()
-								userLogonList[k].collateralInfo.mvo = col.GetMvo()
-								userLogonList[k].collateralInfo.upl = col.GetOte()
-								userLogonList[k].collateralInfo.purchasingPower = col.GetPurchasingPower()
-								userLogonList[k].collateralInfo.totalMargin = col.GetTotalMargin()
+							if user,ok := userMap.getUser(accountID) ; ok {
+								user.collateralInfo.currency = col.GetCurrency()
+								user.collateralInfo.marginCredit = col.GetMarginCredit()
+								user.collateralInfo.mvf = col.GetMvf()
+								user.collateralInfo.mvo = col.GetMvo()
+								user.collateralInfo.upl = col.GetOte()
+								user.collateralInfo.purchasingPower = col.GetPurchasingPower()
+								user.collateralInfo.totalMargin = col.GetTotalMargin()
 							}
-						}
 					}
 
 				case "trade_subscription_status":
@@ -501,8 +546,9 @@ func RecvMessage() {
 		}
 	}
 }
-func RecvMessageOne() (msg *ServerMsg) {
-	_, message, err := conn.ReadMessage()
+func RecvMessageOne(connWithLock ConnWithLock) (msg *ServerMsg) {
+	connWithLock.rwmux.RLock()
+	_, message, err := connWithLock.conn.ReadMessage()
 	if err != nil {
 		fmt.Println("read error:", err)
 		return
@@ -510,6 +556,7 @@ func RecvMessageOne() (msg *ServerMsg) {
 	msg = &ServerMsg{}
 	proto.Unmarshal(message, msg)
 	//fmt.Printf("recv: %s \n", msg)
+	connWithLock.rwmux.RUnlock()
 	return msg
 }
 
@@ -546,13 +593,70 @@ func flipSide(side string, shortBool bool) (s string, b bool) {
 	return s, b
 }
 
+type CQGAccountMap struct {
+	mux        sync.Mutex
+	accountMap map[string]*CQGAccount
+}
+
+func NewCQGAccountMap() *CQGAccountMap {
+	return &CQGAccountMap{accountMap: make(map[string]*CQGAccount)}
+}
+func (cam CQGAccountMap) addAccount(account *CQGAccount) {
+	cam.mux.Lock()
+	cam.accountMap[account.username] = account
+	cam.mux.Unlock()
+}
+func (cam CQGAccountMap) removeAccount(account *CQGAccount) {
+	cam.mux.Lock()
+	delete(cam.accountMap, account.username)
+	cam.mux.Unlock()
+}
+
+type CQGAccount struct {
+	username     string
+	password     string
+	userMap      map[int32]*User
+	mux          sync.Mutex
+	connWithLock ConnWithLock
+}
+
+func NewCQGAccount() *CQGAccount {
+	return &CQGAccount{userMap: make(map[int32]*User)}
+}
+func (cqgAccount *CQGAccount) addUser(user *User) {
+	cqgAccount.mux.Lock()
+	cqgAccount.userMap[user.accountID] = user
+	cqgAccount.mux.Unlock()
+}
+
+type UserMap struct {
+	userMap map[int32]*User
+	mux     sync.Mutex
+}
+
+func NewUserMap() *UserMap {
+	return &UserMap{userMap: make(map[int32]*User)}
+}
+func (up *UserMap) addUser(user *User) {
+	up.mux.Lock()
+	up.userMap[user.accountID] = user
+	up.mux.Unlock()
+}
+func (up *UserMap) getUser(accountID int32) (*User, bool) {
+	u, e := up.userMap[accountID]
+	return u, e
+}
+
 type User struct {
 	username         string
-	password         string
 	accountID        int32
 	workingOrderList []WorkingOrder
 	positionList     []Position
 	collateralInfo   CollateralInfo
+}
+type ConnWithLock struct {
+	rwmux sync.RWMutex
+	conn  *websocket.Conn
 }
 
 type WorkingOrder struct {
@@ -590,7 +694,7 @@ func (position *Position) updatePriceAndQty() {
 	position.price = 0
 	for _, openPosition := range position.subPositionMap {
 		position.quantity += openPosition.GetQty()
-		position.price += openPosition.GetPrice()* float64(openPosition.GetQty())
+		position.price += openPosition.GetPrice() * float64(openPosition.GetQty())
 	}
 	//averaging out the price
 	position.price /= float64(position.quantity)
