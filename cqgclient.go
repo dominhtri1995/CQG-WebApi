@@ -24,6 +24,7 @@ var cancelOrderMap syncmap.Map
 var updateOrderMap syncmap.Map
 var informationRequestMap syncmap.Map
 
+var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
 func CQG_StartWebApi(username string, password string, accountID int32) int {
 
 	cqgAccount := NewCQGAccount()
@@ -59,7 +60,7 @@ func CQG_StartWebApi(username string, password string, accountID int32) int {
 	return 0
 }
 func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
-	var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
+
 	flag.Parse()
 	log.SetFlags(0)
 
@@ -68,7 +69,7 @@ func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
 
 	cqgAccount.connWithLock.conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("dial:", err)
+		log.Println("Error dial:", err)
 		return nil
 	}
 	go RecvMessage(cqgAccount.connWithLock, username)
@@ -78,6 +79,7 @@ func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
 func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 
 	ifr := CQG_InformationRequest(symbol, 1, "VTechapi")
+
 	if ifr.status == "ok" {
 		var c = make(chan NewOrderCancelUpdateStatus)
 		user, _ := userMap.getUser(accountID)
@@ -157,12 +159,15 @@ func SendMessage(message *ClientMsg, connWithLock ConnWithLock) {
 }
 func RecvMessage(connWithLock ConnWithLock, username string) {
 	metadataMap := cqgAccountMap.accountMap[username].metadataMap
+Loop:
 	for {
 
 		msg := RecvMessageOne(connWithLock)
-		if (msg == nil) {
-			continue
+		if msg == nil {
+			recoverFromDisconnection(connWithLock, username)
+			break
 		}
+
 		v := reflect.ValueOf(*msg)
 		//t := reflect.TypeOf(*msg)
 		_, md := descriptor.ForMessage(msg)
@@ -434,7 +439,7 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 								chainOrderID := orderStatus.GetChainOrderId()
 								if user, ok := userMap.getUser(accountID); ok {
 									if wo, ok := user.workingOrderMap.Load(chainOrderID); ok {
-										wo,_ := wo.(*WorkingOrder)
+										wo, _ := wo.(*WorkingOrder)
 										wo.orderID = orderStatus.GetOrderId()
 										wo.clorID = orderStatus.GetOrder().GetClOrderId()
 										wo.quantity = orderStatus.GetRemainingQty()
@@ -569,6 +574,8 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 						//*********** CRITICAL ERROR ALERT ADMIN IMMEDIATELY
 						fmt.Println("*********** CRITICAL ERROR ALERT ADMIN IMMEDIATELY *******")
 						fmt.Println("Try logoff and logon again")
+						recoverFromDisconnection(connWithLock, username)
+						break Loop
 					}
 				}
 			}
@@ -576,11 +583,13 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 	}
 }
 func RecvMessageOne(connWithLock ConnWithLock) (msg *ServerMsg) {
+
 	connWithLock.rwmux.RLock()
 	_, message, err := connWithLock.conn.ReadMessage()
 	if err != nil {
 		fmt.Println("read error:", err)
-		return
+		connWithLock.status = "down"
+		return nil
 	}
 	msg = &ServerMsg{}
 	proto.Unmarshal(message, msg)
@@ -588,7 +597,31 @@ func RecvMessageOne(connWithLock ConnWithLock) (msg *ServerMsg) {
 	connWithLock.rwmux.RUnlock()
 	return msg
 }
+func recoverFromDisconnection(connWithLock ConnWithLock, username string) {
+	account := cqgAccountMap.accountMap[username]
+	cqgAccountMap.removeAccount(username)
+	var err bool
 
+	for {
+		for key, _ := range account.userMap {
+			fmt.Printf("Reconnecting with %s pass: %s  account: %d\n", account.username, account.password, key)
+			result := CQG_StartWebApi(account.username, account.password, key)
+			if result == -1 {
+				err = true
+			} else {
+				delete(account.userMap, key)
+			}
+		}
+		if err {
+			err = false
+			time.Sleep(20 * time.Second)
+		} else {
+			break
+		}
+	}
+	fmt.Println("break loop in recovering")
+
+}
 func getTimeOutChan() chan bool {
 	timeout := make(chan bool, 1)
 	go func() {
@@ -635,9 +668,9 @@ func (cam CQGAccountMap) addAccount(account *CQGAccount) {
 	cam.accountMap[account.username] = account
 	cam.mux.Unlock()
 }
-func (cam CQGAccountMap) removeAccount(account *CQGAccount) {
+func (cam CQGAccountMap) removeAccount(username string) {
 	cam.mux.Lock()
-	delete(cam.accountMap, account.username)
+	delete(cam.accountMap, username)
 	cam.mux.Unlock()
 }
 
@@ -700,8 +733,9 @@ func (user User) getMetadataMap(accountID int32, id uint32) *ContractMetadata {
 }
 
 type ConnWithLock struct {
-	rwmux sync.RWMutex
-	conn  *websocket.Conn
+	rwmux  sync.RWMutex
+	conn   *websocket.Conn
+	status string
 }
 
 type WorkingOrder struct {

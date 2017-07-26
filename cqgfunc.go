@@ -123,6 +123,7 @@ func CQG_InformationRequest(symbol string, id uint32,username string) Informatio
 	var ifr InformationRequestStatus
 	ifr.id =id
 	ifr.username = username
+	ifr.status = "ok"
 	ifr.channel = make (chan InformationRequestStatus)
 	informationRequestMap.Store(id,ifr)
 
@@ -136,7 +137,15 @@ func CQG_InformationRequest(symbol string, id uint32,username string) Informatio
 		},
 	}
 	SendMessage(clientMsg, cqgAccountMap.accountMap[username].connWithLock)
-	ifr = <- ifr.channel
+	select {
+	case ifr = <-ifr.channel:
+		informationRequestMap.Delete(id)
+		return ifr
+	case <- getTimeOutChan():
+		ifr.status="rejected"
+		ifr.reason ="Unable to obtain symbol from server"
+		informationRequestMap.Delete(id)
+	}
 	return ifr
 }
 func CQG_SendLogonMessage(username string, accountID int32, password string, clientAppID string, clientVersion string) *ServerMsg {
