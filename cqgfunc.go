@@ -19,7 +19,7 @@ func CQG_OrderSubscription(id uint32, subscribe bool, username string) {
 		},
 	}
 	SendMessage(clientMsg, cqgAccountMap.accountMap[username].connWithLock)
-	_,_,_= <-chanOrderSubscription, <-chanPositionSubcription , <-chanCollateralSubscription
+	_,_,_= <- cqgAccountMap.accountMap[username].chanOrderSubscription, <-cqgAccountMap.accountMap[username].chanPositionSubcription , <-cqgAccountMap.accountMap[username].chanCollateralSubscription
 	fmt.Println("Subscription done")
 }
 func NewOrderRequest(id uint32,username string, accountID int32, contractID uint32, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64, c chan NewOrderCancelUpdateStatus) {
@@ -148,10 +148,8 @@ func CQG_SendLogonMessage(username string, accountID int32, password string, cli
 	}
 
 	SendMessage(LogonMessage,cqgAccountMap.accountMap[username].connWithLock)
-	msg := <-chanLogon
+	msg := <- cqgAccountMap.accountMap[username].chanLogon
 	return msg
-
-
 }
 func CQG_SendLogoffMessage(reason string,username string){
 	LogoffMessage := &ClientMsg{

@@ -24,11 +24,6 @@ var cancelOrderMap syncmap.Map
 var updateOrderMap syncmap.Map
 var informationRequestMap syncmap.Map
 
-var chanLogon = make(chan *ServerMsg)
-var chanInformationReport = make(chan *ServerMsg)
-var chanOrderSubscription = make(chan *ServerMsg)
-var chanPositionSubcription = make(chan *ServerMsg)
-var chanCollateralSubscription = make(chan *ServerMsg)
 
 func CQG_StartWebApi(username string, password string, accountID int32) int {
 
@@ -190,7 +185,7 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 				//fmt.Println(md.GetField()[i].GetName())
 				switch md.GetField()[i].GetName() {
 				case "logon_result":
-					chanLogon <- msg
+					cqgAccountMap.accountMap[username].chanLogon <- msg
 				case "logged_off":
 
 				case "information_report":
@@ -364,6 +359,7 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 								wo.quantity = orderStatus.GetRemainingQty()
 								wo.ordType = orderStatus.GetOrder().GetOrderType()
 								wo.timeInForce = orderStatus.GetOrder().GetDuration()
+								wo.text ="WORKING"
 
 								var price int32
 								if (wo.ordType == 2 || wo.ordType == 4 ) {
@@ -490,6 +486,7 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 								wo.quantity = orderStatus.GetRemainingQty()
 								wo.ordType = orderStatus.GetOrder().GetOrderType()
 								wo.timeInForce = orderStatus.GetOrder().GetDuration()
+								wo.text = "ACTIVEAT"
 
 								var price int32
 								if (wo.ordType == 2 || wo.ordType == 4 ) {
@@ -569,11 +566,11 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 						for _, scope := range tsc.GetSubscriptionScope() {
 							switch int(scope) {
 							case 1:
-								chanOrderSubscription <- msg
+								cqgAccountMap.accountMap[username].chanOrderSubscription <- msg
 							case 2:
-								chanPositionSubcription <- msg
+								cqgAccountMap.accountMap[username].chanPositionSubcription <- msg
 							case 3:
-								chanCollateralSubscription <- msg
+								cqgAccountMap.accountMap[username].chanCollateralSubscription <- msg
 							}
 						}
 					}
@@ -662,10 +659,18 @@ type CQGAccount struct {
 	userMap      map[int32]*User
 	mux          sync.Mutex
 	connWithLock ConnWithLock
+	chanLogon	 chan *ServerMsg
+	chanOrderSubscription chan *ServerMsg
+	chanPositionSubcription chan *ServerMsg
+	chanCollateralSubscription chan *ServerMsg
 }
 
 func NewCQGAccount() *CQGAccount {
-	return &CQGAccount{userMap: make(map[int32]*User), metadataMap: make(map[uint32]*ContractMetadata)}
+	return &CQGAccount{userMap: make(map[int32]*User), metadataMap: make(map[uint32]*ContractMetadata),
+		chanLogon: make(chan *ServerMsg), chanOrderSubscription:make(chan *ServerMsg),
+		chanCollateralSubscription:make(chan *ServerMsg),
+		chanPositionSubcription:make(chan *ServerMsg),
+	}
 }
 func (cqgAccount *CQGAccount) addUser(user *User) {
 	cqgAccount.mux.Lock()
@@ -722,6 +727,7 @@ type WorkingOrder struct {
 	timeInForce  uint32
 	price        float64
 	contractID   uint32
+	text         string
 
 	symbol             string
 	productDescription string

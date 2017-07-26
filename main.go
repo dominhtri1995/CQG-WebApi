@@ -8,28 +8,16 @@ import (
 	"reflect"
 
 )
-//var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
-//var conn *websocket.Conn
+
 var err error
 
 func main() {
-	//flag.Parse()
-	//log.SetFlags(0)
-	//
-	//interrupt := make(chan os.Signal, 1)
-	//signal.Notify(interrupt, os.Interrupt)
-	//u := url.URL{Scheme: "wss", Host: *addr, Path: ""}
-	//log.Printf("connecting to %s", u.String())
-	//
-	//conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
-	//if err != nil {
-	//	log.Fatal("dial:", err)
-	//}
-	//defer conn.Close()
-	//go RecvMessage()
-	//
-	//CQG_SendLogonMessage("VTechapi", 16958204, "pass", "WebApiTest", "java-client")
-	CQG_StartWebApi("VTechapi","pass" ,16958204)
+	//Start CQG for this user
+	//Call this function for each user who want to use CQG
+	result := CQG_StartWebApi("VTechapi","pass" ,16958204)
+	if result == -1 {
+		fmt.Println("fail to initiate CQG API for user ",16958204)
+	}
 Loop:
 	for {
 		action, err := QueryAction()
