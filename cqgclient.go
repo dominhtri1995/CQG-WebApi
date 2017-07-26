@@ -98,21 +98,42 @@ func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID st
 
 	return ordStatus
 }
-func CQG_GetPosition(accountID int32) *User {
+func CQG_GetPosition(accountID int32) *UserInfoRequest {
 	if user, ok := userMap.getUser(accountID); ok {
-		return user
+		var uir UserInfoRequest
+		uir.username =user.username
+		uir.accountID = user.accountID
+		user.positionMap.Range(func(key, value interface{}) bool {
+			position,_ := value.(*Position)
+			uir.positionList = append(uir.positionList, *position)
+			uir.collateralInfo =user.collateralInfo
+			return true
+		})
+		return &uir
 	}
 	return nil
 }
-func CQG_GetWorkingOrder(accountID int32) *User {
+func CQG_GetWorkingOrder(accountID int32) *UserInfoRequest {
 	if user, ok := userMap.getUser(accountID); ok {
-		return user
+		var uir UserInfoRequest
+		uir.username =user.username
+		uir.accountID = user.accountID
+		user.workingOrderMap.Range(func(key, value interface{}) bool {
+			wo,_ := value.(*WorkingOrder)
+			uir.workingOrderList = append(uir.workingOrderList, *wo)
+			uir.collateralInfo =user.collateralInfo
+			return true
+		})
+		return &uir
 	}
 	return nil
 }
-func CQG_GetCollateralInfo(accountID int32) *User {
+func CQG_GetCollateralInfo(accountID int32) *UserInfoRequest {
 	if user, ok := userMap.getUser(accountID); ok {
-		return user
+		var uir UserInfoRequest
+		uir.collateralInfo =user.collateralInfo
+
+		return &uir
 	}
 	return nil
 }
@@ -804,4 +825,12 @@ type InformationRequestStatus struct {
 	status     string
 	reason     string
 	channel    chan InformationRequestStatus
+}
+
+type UserInfoRequest struct {
+	username         string
+	accountID        int32
+	workingOrderList []WorkingOrder
+	positionList     []Position
+	collateralInfo   CollateralInfo
 }
