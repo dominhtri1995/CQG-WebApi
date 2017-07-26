@@ -24,7 +24,6 @@ var cancelOrderMap syncmap.Map
 var updateOrderMap syncmap.Map
 var informationRequestMap syncmap.Map
 
-
 func CQG_StartWebApi(username string, password string, accountID int32) int {
 
 	cqgAccount := NewCQGAccount()
@@ -78,8 +77,8 @@ func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
 }
 func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 
-	ifr := CQG_InformationRequest(symbol, 1,"VTechapi")
-	if ifr.status == "ok"{
+	ifr := CQG_InformationRequest(symbol, 1, "VTechapi")
+	if ifr.status == "ok" {
 		var c = make(chan NewOrderCancelUpdateStatus)
 		user, _ := userMap.getUser(accountID)
 		NewOrderRequest(id, user.username, accountID, ifr.contractID, clorderID, orderType, price, duration, side, qty, is_manual, utc, c)
@@ -90,7 +89,7 @@ func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID st
 			ordStatus.status = "rejected"
 			ordStatus.reason = "time out"
 		}
-	}else {
+	} else {
 		ordStatus.status = "rejected"
 		ordStatus.reason = ifr.reason
 	}
@@ -189,32 +188,32 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 				case "logged_off":
 
 				case "information_report":
-					for _, inforeport := range msg.GetInformationReport(){
+					for _, inforeport := range msg.GetInformationReport() {
 						id := inforeport.GetId()
-						if ifr,ok := informationRequestMap.Load(id);ok{
-							ifr,_ := ifr.(InformationRequestStatus)
+						if ifr, ok := informationRequestMap.Load(id); ok {
+							ifr, _ := ifr.(InformationRequestStatus)
 							switch InformationReport_StatusCode_name[int32(inforeport.GetStatusCode())] {
 							case InformationReport_FAILURE.String():
 								fmt.Println("Error Information Request")
-								ifr.status= "rejected"
+								ifr.status = "rejected"
 								ifr.reason = inforeport.GetTextMessage()
 								ifr.channel <- ifr
 							case InformationReport_NOT_FOUND.String():
-								ifr.status= "rejected"
+								ifr.status = "rejected"
 								ifr.reason = inforeport.GetTextMessage()
 								ifr.channel <- ifr
 							case InformationReport_REQUEST_LIMIT_VIOLATION.String():
-								ifr.status= "rejected"
+								ifr.status = "rejected"
 								ifr.reason = "exceed request limit for the day"
 								ifr.channel <- ifr
 							default:
 								metadata := inforeport.GetSymbolResolutionReport().GetContractMetadata()
 								metadataMap[metadata.GetContractId()] = metadata
-								ifr.status= "ok"
+								ifr.status = "ok"
 								ifr.contractID = metadata.GetContractId()
 								ifr.channel <- ifr
 							}
-						}else{
+						} else {
 							fmt.Println("unexpected information report message. error contact admin")
 						}
 
@@ -254,7 +253,7 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 								//add to Position list of user
 								if user, ok := userMap.getUser(accountID); ok {
 									fmt.Println("add 1 position ", userPosition.symbol, userPosition.contractID)
-									user.positionList = append(user.positionList, userPosition)
+									user.positionMap.Store(userPosition.contractID, &userPosition)
 								}
 
 							} else {
@@ -285,29 +284,24 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 
 								//add to Position list of user
 								if user, ok := userMap.getUser(accountID); ok {
-									match := false
-									for positionIndex := range user.positionList {
-										if user.positionList[positionIndex].contractID == userPosition.contractID { //COntract already exist
-											for _, openPosition := range position.GetOpenPosition() { //Update open_position/subposition
-												if oldOpenPosition, ok := user.positionList[positionIndex].subPositionMap[openPosition.GetId()]; ok {
-													oldOpenPosition.Qty = openPosition.Qty
-													oldOpenPosition.Price = openPosition.Price
+									if p, ok := user.positionMap.Load(userPosition.contractID); ok { //Contract already exist
+										p, _ := p.(*Position)
+										for _, openPosition := range position.GetOpenPosition() { //Update open_position/subposition
+											if oldOpenPosition, ok := p.subPositionMap[openPosition.GetId()]; ok {
+												oldOpenPosition.Qty = openPosition.Qty
+												oldOpenPosition.Price = openPosition.Price
 
-												} else { // add new open_position
-													user.positionList[positionIndex].subPositionMap[openPosition.GetId()] = openPosition
-												}
+											} else { // add new open_position
+												p.subPositionMap[openPosition.GetId()] = openPosition
 											}
-											user.positionList[positionIndex].updatePriceAndQty()
-											user.positionList[positionIndex].side = userPosition.side
-											match = true
-											if user.positionList[positionIndex].quantity == 0 { //remove position if qty =0 square position
-												user.positionList = append(user.positionList[:positionIndex], user.positionList[positionIndex+1:]...)
-												break
-											}
-
 										}
-									}
-									if match == false { // new contract added to position
+										p.updatePriceAndQty()
+										p.side = userPosition.side
+										if p.quantity == 0 { //remove position if qty =0 square position
+											user.positionMap.Delete(p.contractID)
+										}
+
+									} else { //New Position
 										for _, openPosition := range position.GetOpenPosition() {
 											userPosition.quantity += openPosition.GetQty()
 											userPosition.price += openPosition.GetPrice() * float64(openPosition.GetQty())
@@ -315,8 +309,9 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 										}
 										//averaging out the price
 										userPosition.price /= float64(userPosition.quantity)
-										user.positionList = append(user.positionList, userPosition)
+										user.positionMap.Store(userPosition.contractID, &userPosition)
 									}
+
 								}
 
 							} else {
@@ -359,7 +354,7 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 								wo.quantity = orderStatus.GetRemainingQty()
 								wo.ordType = orderStatus.GetOrder().GetOrderType()
 								wo.timeInForce = orderStatus.GetOrder().GetDuration()
-								wo.text ="WORKING"
+								wo.text = "WORKING"
 
 								var price int32
 								if (wo.ordType == 2 || wo.ordType == 4 ) {
@@ -379,21 +374,19 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 
 								if user, ok := userMap.getUser(accountID); ok {
 									//fmt.Println("append new order to working")
-									user.workingOrderList = append(user.workingOrderList, wo)
+									user.workingOrderMap.Store(wo.chainOrderID, &wo)
 								}
 
 							case TransactionStatus_FILL.String():
 								accountID := orderStatus.GetOrder().GetAccountId()
 								chainOrderID := orderStatus.GetChainOrderId()
 								if user, ok := userMap.getUser(accountID); ok {
-									for i := range user.workingOrderList {
-										wo := &user.workingOrderList[i]
-										if wo.chainOrderID == chainOrderID {
-											wo.quantity = orderStatus.GetRemainingQty()
-											//fmt.Printf("%d left \n",wo.quantity)
-											if wo.quantity == 0 {
-												user.workingOrderList = append(user.workingOrderList[:i], user.workingOrderList[i+1:]...)
-											}
+									if wo, ok := user.workingOrderMap.Load(chainOrderID); ok {
+										wo, _ := wo.(*WorkingOrder)
+										wo.quantity = orderStatus.GetRemainingQty()
+										//fmt.Printf("%d left \n",wo.quantity)
+										if wo.quantity == 0 {
+											user.workingOrderMap.Delete(chainOrderID)
 										}
 									}
 								}
@@ -413,11 +406,9 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 								chainOrderID := orderStatus.GetChainOrderId()
 								accountID := orderStatus.GetOrder().GetAccountId()
 								if user, ok := userMap.getUser(accountID); ok {
-									for k := range user.workingOrderList {
-										if user.workingOrderList[k].chainOrderID == chainOrderID {
-											user.workingOrderList = append(user.workingOrderList[:k], user.workingOrderList[k+1:]...)
-											break
-										}
+									if _, ok := user.workingOrderMap.Load(chainOrderID); ok {
+										user.workingOrderMap.Delete(chainOrderID)
+										break
 									}
 								}
 							case TransactionStatus_REJECT_CANCEL.String():
@@ -442,20 +433,18 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 								accountID := orderStatus.GetOrder().GetAccountId()
 								chainOrderID := orderStatus.GetChainOrderId()
 								if user, ok := userMap.getUser(accountID); ok {
-									for k := range user.workingOrderList {
-										wo := &user.workingOrderList[k]
-										if wo.chainOrderID == chainOrderID {
-											wo.orderID = orderStatus.GetOrderId()
-											wo.clorID = orderStatus.GetOrder().GetClOrderId()
-											wo.quantity = orderStatus.GetRemainingQty()
-											wo.timeInForce = orderStatus.GetOrder().GetDuration()
-											ordType := orderStatus.GetOrder().GetOrderType()
+									if wo, ok := user.workingOrderMap.Load(chainOrderID); ok {
+										wo,_ := wo.(*WorkingOrder)
+										wo.orderID = orderStatus.GetOrderId()
+										wo.clorID = orderStatus.GetOrder().GetClOrderId()
+										wo.quantity = orderStatus.GetRemainingQty()
+										wo.timeInForce = orderStatus.GetOrder().GetDuration()
+										ordType := orderStatus.GetOrder().GetOrderType()
 
-											if (ordType == 2 || wo.ordType == 4) {
-												wo.price = float64(orderStatus.GetOrder().GetLimitPrice()) * wo.priceScale
-											} else if (wo.ordType == 3 || wo.ordType == 4 ) {
-												wo.price = float64(orderStatus.GetOrder().GetStopPrice()) * wo.priceScale
-											}
+										if (ordType == 2 || wo.ordType == 4) {
+											wo.price = float64(orderStatus.GetOrder().GetLimitPrice()) * wo.priceScale
+										} else if (wo.ordType == 3 || wo.ordType == 4 ) {
+											wo.price = float64(orderStatus.GetOrder().GetStopPrice()) * wo.priceScale
 										}
 									}
 								}
@@ -506,7 +495,7 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 
 								if user, ok := userMap.getUser(accountID); ok {
 									//fmt.Println("append new order to working")
-									user.workingOrderList = append(user.workingOrderList, wo)
+									user.workingOrderMap.Store(wo.chainOrderID, &wo)
 								}
 							}
 						} else { //Trade subscription snapshot
@@ -541,7 +530,7 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 								}
 
 								if user, ok := userMap.getUser(accountID); ok {
-									user.workingOrderList = append(user.workingOrderList, wo)
+									user.workingOrderMap.Store(wo.chainOrderID, &wo)
 								}
 							}
 						}
@@ -653,23 +642,23 @@ func (cam CQGAccountMap) removeAccount(account *CQGAccount) {
 }
 
 type CQGAccount struct {
-	username     string
-	password     string
-	metadataMap  map[uint32]*ContractMetadata
-	userMap      map[int32]*User
-	mux          sync.Mutex
-	connWithLock ConnWithLock
-	chanLogon	 chan *ServerMsg
-	chanOrderSubscription chan *ServerMsg
-	chanPositionSubcription chan *ServerMsg
+	username                   string
+	password                   string
+	metadataMap                map[uint32]*ContractMetadata
+	userMap                    map[int32]*User
+	mux                        sync.Mutex
+	connWithLock               ConnWithLock
+	chanLogon                  chan *ServerMsg
+	chanOrderSubscription      chan *ServerMsg
+	chanPositionSubcription    chan *ServerMsg
 	chanCollateralSubscription chan *ServerMsg
 }
 
 func NewCQGAccount() *CQGAccount {
-	return &CQGAccount{userMap: make(map[int32]*User), metadataMap: make(map[uint32]*ContractMetadata),
-		chanLogon: make(chan *ServerMsg), chanOrderSubscription:make(chan *ServerMsg),
-		chanCollateralSubscription:make(chan *ServerMsg),
-		chanPositionSubcription:make(chan *ServerMsg),
+	return &CQGAccount{userMap:     make(map[int32]*User), metadataMap: make(map[uint32]*ContractMetadata),
+		chanLogon:                  make(chan *ServerMsg), chanOrderSubscription: make(chan *ServerMsg),
+		chanCollateralSubscription: make(chan *ServerMsg),
+		chanPositionSubcription:    make(chan *ServerMsg),
 	}
 }
 func (cqgAccount *CQGAccount) addUser(user *User) {
@@ -697,11 +686,11 @@ func (up *UserMap) getUser(accountID int32) (*User, bool) {
 }
 
 type User struct {
-	username         string
-	accountID        int32
-	workingOrderList []WorkingOrder
-	positionList     []Position
-	collateralInfo   CollateralInfo
+	username        string
+	accountID       int32
+	workingOrderMap syncmap.Map
+	positionMap     syncmap.Map
+	collateralInfo  CollateralInfo
 }
 
 func (user User) getMetadataMap(accountID int32, id uint32) *ContractMetadata {
@@ -775,10 +764,10 @@ type NewOrderCancelUpdateStatus struct {
 }
 
 type InformationRequestStatus struct {
-	id 	    uint32
-	username string
+	id         uint32
+	username   string
 	contractID uint32
-	status 	string
-	reason 	string
-	channel chan InformationRequestStatus
+	status     string
+	reason     string
+	channel    chan InformationRequestStatus
 }

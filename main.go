@@ -29,10 +29,11 @@ Loop:
 			fmt.Println("Position :")
 			user := CQG_GetPosition( 16958204)
 			if user != nil {
-				for _, po := range user.positionList {
+				user.positionMap.Range(func(key, value interface{}) bool {
+					po,_ := value.(*Position)
 					fmt.Printf("%s %d %s at %f \n", po.side, po.quantity, po.symbol, po.price)
-				}
-				fmt.Printf("Your total unrealized P&L is: %f %s\n",user.collateralInfo.upl,user.collateralInfo.currency)
+					return true
+				})
 			}
 
 		case "2":
@@ -49,57 +50,66 @@ Loop:
 			fmt.Println("Working Order:")
 			user := CQG_GetWorkingOrder(16958204) //return a list of working order
 			if user != nil {
-				for _, wo := range user.workingOrderList {
+				user.workingOrderMap.Range(func(key, value interface{}) bool {
+					wo,_ := value.(*WorkingOrder)
 					fmt.Printf("%s %d %s at %f \n", wo.side, wo.quantity, wo.symbol, wo.price)
-				}
+					return true
+				})
 			}
 		case "4":
 			fmt.Println("The answer is Tri Do :3")
 		case "5":
 			user := CQG_GetWorkingOrder(16958204) //return a list of working order
-			if user != nil && len(user.workingOrderList) > 0 {
-				wo := user.workingOrderList[0]
-				ordStatus := CQG_CancelOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp())
-				if ordStatus.status == "ok" {
-					fmt.Println("Order Cancelled Successfully")
-				} else if ordStatus.status == "rejected" {
-					fmt.Printf("Order cancel Rejected \n")
-					if ordStatus.reason != "" {
-						fmt.Printf("Reason: %s", ordStatus.reason)
+			if user != nil {
+				user.workingOrderMap.Range(func(key, value interface{}) bool {
+					wo,_ := value.(*WorkingOrder)
+					ordStatus := CQG_CancelOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp())
+					if ordStatus.status == "ok" {
+						fmt.Println("Order Cancelled Successfully")
+					} else if ordStatus.status == "rejected" {
+						fmt.Printf("Order cancel Rejected \n")
+						if ordStatus.reason != "" {
+							fmt.Printf("Reason: %s", ordStatus.reason)
+						}
 					}
-				}
+					return false
+				})
 			}
 		case "6":
 			user := CQG_GetWorkingOrder(16958204) //return a list of working order
-			if user != nil && len(user.workingOrderList) > 0 {
-				for _, wo := range user.workingOrderList {
+			if user != nil {
+				user.workingOrderMap.Range(func(key, value interface{}) bool {
+					wo,_ := value.(*WorkingOrder)
 					ordStatus := CQG_CancelOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp())
-					if (ordStatus.status == "ok") {
+					if ordStatus.status == "ok" {
 						fmt.Println("Order Cancelled Successfully")
-					} else if (ordStatus.status == "rejected") {
+					} else if ordStatus.status == "rejected" {
 						fmt.Printf("Order cancel Rejected \n")
+						if ordStatus.reason != "" {
+							fmt.Printf("Reason: %s", ordStatus.reason)
+						}
+					}
+					return true
+				})
+			}
+		case "7":
+			user := CQG_GetWorkingOrder( 16958204) //return a list of working order
+			if user != nil {
+				user.workingOrderMap.Range(func(key, value interface{}) bool {
+					wo,_ := value.(*WorkingOrder)
+					fmt.Println(int32(wo.price / wo.priceScale))
+					fmt.Println(wo.priceScale)
+					ordStatus := CQG_UpdateOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp(), 2, int32(wo.price / wo.priceScale), 0, wo.timeInForce)
+					if (ordStatus.status == "ok") {
+						fmt.Println("Order Updated Successfully")
+					} else if (ordStatus.status == "rejected") {
+						fmt.Printf("Order update Rejected \n")
 						if (ordStatus.reason != "") {
 							fmt.Printf("Reason: %s", ordStatus.reason)
 						}
 					}
-				}
-
-			}
-		case "7":
-			user := CQG_GetWorkingOrder( 16958204) //return a list of working order
-			if user != nil && len(user.workingOrderList) > 0 {
-				wo := user.workingOrderList[0]
-				fmt.Println(int32(wo.price / wo.priceScale))
-				fmt.Println(wo.priceScale)
-				ordStatus := CQG_UpdateOrderRequest(1, wo.orderID, user.accountID, wo.clorID, xid.New().String(), makeTimestamp(), 2, int32(wo.price / wo.priceScale), 0, wo.timeInForce)
-				if (ordStatus.status == "ok") {
-					fmt.Println("Order Updated Successfully")
-				} else if (ordStatus.status == "rejected") {
-					fmt.Printf("Order update Rejected \n")
-					if (ordStatus.reason != "") {
-						fmt.Printf("Reason: %s", ordStatus.reason)
-					}
-				}
+					return false
+				})
 			}
 		case "8":
 			user := CQG_GetCollateralInfo(16958204)
