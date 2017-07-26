@@ -59,12 +59,14 @@ func CQG_StartWebApi(username string, password string, accountID int32) int {
 		cqgAccount = cqgAccountMap.accountMap[username]
 	}
 
-	var user User
-	user.username = username
-	user.accountID = accountID
-	cqgAccount.addUser(&user)
-	userMap.addUser(&user)
-	CQG_OrderSubscription(hash(xid.New().String()), true, username)
+	if _, ok := cqgAccount.userMap[accountID]; !ok {
+		var user User
+		user.username = username
+		user.accountID = accountID
+		cqgAccount.addUser(&user)
+		userMap.addUser(&user)
+		CQG_OrderSubscription(hash(xid.New().String()), true, username)
+	}
 
 	return 0
 }
@@ -585,7 +587,7 @@ Loop:
 							}
 						} else { //Trade subscription snapshot
 							if orderStatus.GetStatus() == 3 || orderStatus.GetStatus() == 11 {
-								fmt.Println("in order status snapshot")
+								//fmt.Println("in order status snapshot")
 								//account := orderStatus.GetEnteredByUser()
 								accountID := orderStatus.GetOrder().GetAccountId()
 
@@ -731,8 +733,8 @@ func hash(s string) uint32 {
 	h.Write([]byte(s))
 	return h.Sum32()
 }
-func CQG_InitiateLogging(){
-	f, err := os.OpenFile("cqglog.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+func CQG_InitiateLogging() {
+	f, err := os.OpenFile("cqglog.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println("error open log file for CQG")
 	}

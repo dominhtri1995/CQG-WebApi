@@ -12,9 +12,10 @@ import (
 var err error
 
 func main() {
+
+	CQG_InitiateLogging() //Initiate logging , call once when the server starts
 	//Start CQG for this user
 	//Call this function for each user who want to use CQG
-	CQG_InitiateLogging()
 	result := CQG_StartWebApi("VTechapi","pass" ,16958204)
 	if result == -1 {
 		fmt.Println("fail to initiate CQG API for user ",16958204)
