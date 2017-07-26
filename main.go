@@ -14,6 +14,7 @@ var err error
 func main() {
 	//Start CQG for this user
 	//Call this function for each user who want to use CQG
+	CQG_InitiateLogging()
 	result := CQG_StartWebApi("VTechapi","pass" ,16958204)
 	if result == -1 {
 		fmt.Println("fail to initiate CQG API for user ",16958204)
@@ -28,11 +29,13 @@ Loop:
 		case "1":
 			fmt.Println("Position :")
 			uir := CQG_GetPosition( 16958204)
-			if uir != nil {
+			if uir != nil && uir.status == "ok"{
 				for _, po := range uir.positionList {
 					fmt.Printf("%s %d %s at %f \n", po.side, po.quantity, po.symbol, po.price)
 				}
 				fmt.Printf("Your total unrealized P&L is: %f %s\n", uir.collateralInfo.upl, uir.collateralInfo.currency)
+			} else{
+				fmt.Println("Error getting P&L: ",uir.reason)
 			}
 
 		case "2":
@@ -48,16 +51,18 @@ Loop:
 		case "3":
 			fmt.Println("Working Order:")
 			uir := CQG_GetWorkingOrder(16958204) //return a list of working order
-			if uir != nil {
+			if uir != nil && uir.status == "ok" {
 				for _, wo := range uir.workingOrderList {
 					fmt.Printf("%s %d %s at %f \n", wo.side, wo.quantity, wo.symbol, wo.price)
 				}
+			} else{
+				fmt.Println("Error getting working order")
 			}
 		case "4":
 			fmt.Println("The answer is Tri Do :3")
 		case "5":
 			uir := CQG_GetWorkingOrder(16958204) //return a list of working order
-			if uir != nil && len(uir.workingOrderList) > 0 {
+			if uir != nil && len(uir.workingOrderList) > 0 && uir.status == "ok" {
 				wo := uir.workingOrderList[0]
 				ordStatus := CQG_CancelOrderRequest(1, wo.orderID, uir.accountID, wo.clorID, xid.New().String(), makeTimestamp())
 				if ordStatus.status == "ok" {
@@ -71,7 +76,7 @@ Loop:
 			}
 		case "6":
 			uir := CQG_GetWorkingOrder(16958204) //return a list of working order
-			if uir != nil && len(uir.workingOrderList) > 0 {
+			if uir != nil && uir.status == "ok"{
 				for _, wo := range uir.workingOrderList {
 					ordStatus := CQG_CancelOrderRequest(1, wo.orderID, uir.accountID, wo.clorID, xid.New().String(), makeTimestamp())
 					if (ordStatus.status == "ok") {
@@ -87,7 +92,7 @@ Loop:
 			}
 		case "7":
 			uir := CQG_GetWorkingOrder( 16958204) //return a list of working order
-			if uir != nil && len(uir.workingOrderList) > 0 {
+			if uir != nil && len(uir.workingOrderList) > 0 && uir.status == "ok" {
 				wo := uir.workingOrderList[0]
 				fmt.Println(int32(wo.price / wo.priceScale))
 				fmt.Println(wo.priceScale)

@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/url"
 	"sync"
+	"os"
 )
 
 var cqgAccountMap = NewCQGAccountMap()
@@ -25,6 +26,7 @@ var updateOrderMap syncmap.Map
 var informationRequestMap syncmap.Map
 
 var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
+
 func CQG_StartWebApi(username string, password string, accountID int32) int {
 
 	cqgAccount := NewCQGAccount()
@@ -40,9 +42,16 @@ func CQG_StartWebApi(username string, password string, accountID int32) int {
 		cqgAccountMap.addAccount(cqgAccount)
 		msg := CQG_SendLogonMessage(username, accountID, password, "WebApiTest", "java-client")
 		if msg.LogonResult.GetResultCode() == 0 {
-			fmt.Printf("Logon Successfully!!! Let's make America great again \n")
+			fmt.Printf("%s Logon Successfully!!! Let's make America great again \n", username)
 		} else {
-			fmt.Printf("Logon failed !! It's Obama's fault \n")
+			fmt.Printf("%s Logon failed !! It's Obama's fault \n", username)
+			cqgAccountMap.removeAccount(username)
+			//Close the socket
+			err := cqgAccount.connWithLock.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			if err != nil {
+				log.Println("Send CloseMessage err :", err)
+			}
+			cqgAccount.connWithLock.conn.Close()
 			return -1
 		}
 
@@ -67,6 +76,7 @@ func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
 	u := url.URL{Scheme: "wss", Host: *addr, Path: ""}
 	log.Printf("connecting to %s", u.String())
 
+	//establish connection and return a websocket to .conn of this account
 	cqgAccount.connWithLock.conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Println("Error dial:", err)
@@ -77,6 +87,12 @@ func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
 	return cqgAccount
 }
 func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
+
+	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
+		ordStatus.status = "rejected"
+		ordStatus.reason = "Connection not established. Please sign in"
+		return
+	}
 
 	ifr := CQG_InformationRequest(symbol, 1, "VTechapi")
 
@@ -99,14 +115,22 @@ func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID st
 	return ordStatus
 }
 func CQG_GetPosition(accountID int32) *UserInfoRequest {
+	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
+		var uir UserInfoRequest
+		uir.status = "rejected"
+		uir.reason = "Connection not established. Please sign in"
+		return &uir
+	}
+
 	if user, ok := userMap.getUser(accountID); ok {
 		var uir UserInfoRequest
-		uir.username =user.username
+		uir.status = "ok"
+		uir.username = user.username
 		uir.accountID = user.accountID
 		user.positionMap.Range(func(key, value interface{}) bool {
-			position,_ := value.(*Position)
+			position, _ := value.(*Position)
 			uir.positionList = append(uir.positionList, *position)
-			uir.collateralInfo =user.collateralInfo
+			uir.collateralInfo = user.collateralInfo
 			return true
 		})
 		return &uir
@@ -114,14 +138,22 @@ func CQG_GetPosition(accountID int32) *UserInfoRequest {
 	return nil
 }
 func CQG_GetWorkingOrder(accountID int32) *UserInfoRequest {
+	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
+		var uir UserInfoRequest
+		uir.status = "rejected"
+		uir.reason = "Connection not established. Please sign in"
+		return &uir
+	}
+
 	if user, ok := userMap.getUser(accountID); ok {
 		var uir UserInfoRequest
-		uir.username =user.username
+		uir.status = "ok"
+		uir.username = user.username
 		uir.accountID = user.accountID
 		user.workingOrderMap.Range(func(key, value interface{}) bool {
-			wo,_ := value.(*WorkingOrder)
+			wo, _ := value.(*WorkingOrder)
 			uir.workingOrderList = append(uir.workingOrderList, *wo)
-			uir.collateralInfo =user.collateralInfo
+			uir.collateralInfo = user.collateralInfo
 			return true
 		})
 		return &uir
@@ -129,15 +161,30 @@ func CQG_GetWorkingOrder(accountID int32) *UserInfoRequest {
 	return nil
 }
 func CQG_GetCollateralInfo(accountID int32) *UserInfoRequest {
+	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
+		var uir UserInfoRequest
+		uir.status = "rejected"
+		uir.reason = "Connection not established. Please sign in"
+		return &uir
+	}
+
 	if user, ok := userMap.getUser(accountID); ok {
 		var uir UserInfoRequest
-		uir.collateralInfo =user.collateralInfo
+		uir.status = "ok"
+		uir.collateralInfo = user.collateralInfo
 
 		return &uir
 	}
 	return nil
 }
 func CQG_CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorID string, clorID string, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
+
+	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
+		ordStatus.status = "rejected"
+		ordStatus.reason = "Connection not established. Please sign in"
+		return
+	}
+
 	var c = make(chan NewOrderCancelUpdateStatus)
 	user, _ := userMap.getUser(accountID)
 	CancelOrderRequest(id, orderID, user.username, accountID, oldClorID, clorID, utc, c)
@@ -152,6 +199,12 @@ func CQG_CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorI
 }
 func CQG_UpdateOrderRequest(id uint32, orderID string, accountID int32, oldClorID string, clorID string, utc int64,
 	qty uint32, limitPrice int32, stopPrice int32, duration uint32, ) (ordStatus NewOrderCancelUpdateStatus) {
+
+	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
+		ordStatus.status = "rejected"
+		ordStatus.reason = "Connection not established. Please sign in"
+		return
+	}
 
 	user, _ := userMap.getUser(accountID) // get the user associated
 	var c = make(chan NewOrderCancelUpdateStatus)
@@ -171,10 +224,12 @@ func SendMessage(message *ClientMsg, connWithLock ConnWithLock) {
 	out, _ := proto.Marshal(message)
 	err := connWithLock.conn.WriteMessage(websocket.BinaryMessage, []byte(out))
 	if err != nil {
-		fmt.Println("error:", err)
+		fmt.Println("CQG error:", err)
+		log.Println("CQG error:", err)
 		return
 	} else {
-		fmt.Printf("send: %s\n", *message)
+		//fmt.Printf("send: %s\n", *message)
+		log.Printf("send: %s\n", *message)
 	}
 	connWithLock.rwmux.Unlock()
 }
@@ -184,7 +239,11 @@ Loop:
 	for {
 
 		msg := RecvMessageOne(connWithLock)
-		if msg == nil {
+		if _, ok := cqgAccountMap.accountMap[username]; !ok { //If the cqgAccount is not in monitor list anymore,
+			// meaning failed logon- the connection is already closed
+			break
+		}
+		if msg == nil { //connection error, try to reconnect
 			recoverFromDisconnection(connWithLock, username)
 			break
 		}
@@ -608,16 +667,19 @@ func RecvMessageOne(connWithLock ConnWithLock) (msg *ServerMsg) {
 	connWithLock.rwmux.RLock()
 	_, message, err := connWithLock.conn.ReadMessage()
 	if err != nil {
-		fmt.Println("read error:", err)
+		fmt.Println("CQG read error:", err)
+		log.Println("CQG read error:", err)
 		connWithLock.status = "down"
 		return nil
 	}
 	msg = &ServerMsg{}
 	proto.Unmarshal(message, msg)
-	fmt.Printf("recv: %s \n", msg)
+	//fmt.Printf("recv: %s \n", msg)
+	log.Printf("recv: %s \n", msg)
 	connWithLock.rwmux.RUnlock()
 	return msg
 }
+
 func recoverFromDisconnection(connWithLock ConnWithLock, username string) {
 	account := cqgAccountMap.accountMap[username]
 	cqgAccountMap.removeAccount(username)
@@ -643,6 +705,16 @@ func recoverFromDisconnection(connWithLock ConnWithLock, username string) {
 	fmt.Println("break loop in recovering")
 
 }
+func checkUserLogonStatus(accountID int32) int {
+	if user, ok := userMap.getUser(accountID); ok {
+		if _, ok := cqgAccountMap.accountMap[user.username]; !ok {
+			return -1
+		}
+	} else {
+		return -1
+	}
+	return 0
+}
 func getTimeOutChan() chan bool {
 	timeout := make(chan bool, 1)
 	go func() {
@@ -659,21 +731,12 @@ func hash(s string) uint32 {
 	h.Write([]byte(s))
 	return h.Sum32()
 }
-func flipSide(side string, shortBool bool) (s string, b bool) {
-	switch side {
-	case "BUY":
-		s = "SELL"
-	case "SELL":
-		s = "BUY"
+func CQG_InitiateLogging(){
+	f, err := os.OpenFile("cqglog.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	if err != nil {
+		fmt.Println("error open log file for CQG")
 	}
-
-	switch shortBool {
-	case true:
-		b = false
-	case false:
-		b = true
-	}
-	return s, b
+	log.SetOutput(f)
 }
 
 type CQGAccountMap struct {
@@ -833,4 +896,6 @@ type UserInfoRequest struct {
 	workingOrderList []WorkingOrder
 	positionList     []Position
 	collateralInfo   CollateralInfo
+	status           string
+	reason           string
 }
