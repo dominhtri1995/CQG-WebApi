@@ -22,6 +22,7 @@ var userMap = NewUserMap()
 var newOrderMap syncmap.Map
 var cancelOrderMap syncmap.Map
 var updateOrderMap syncmap.Map
+var informationRequestMap syncmap.Map
 
 var chanLogon = make(chan *ServerMsg)
 var chanInformationReport = make(chan *ServerMsg)
@@ -80,17 +81,25 @@ func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
 
 	return cqgAccount
 }
-func CQG_NewOrderRequest(id uint32, accountID int32, contractID uint32, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
-	var c = make(chan NewOrderCancelUpdateStatus)
-	user, _ := userMap.getUser(accountID)
-	NewOrderRequest(id, user.username, accountID, contractID, clorderID, orderType, price, duration, side, qty, is_manual, utc, c)
-	select {
-	case ordStatus = <-c:
-		return ordStatus
-	case <-getTimeOutChan():
+func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
+
+	ifr := CQG_InformationRequest(symbol, 1,"VTechapi")
+	if ifr.status == "ok"{
+		var c = make(chan NewOrderCancelUpdateStatus)
+		user, _ := userMap.getUser(accountID)
+		NewOrderRequest(id, user.username, accountID, ifr.contractID, clorderID, orderType, price, duration, side, qty, is_manual, utc, c)
+		select {
+		case ordStatus = <-c:
+			return ordStatus
+		case <-getTimeOutChan():
+			ordStatus.status = "rejected"
+			ordStatus.reason = "time out"
+		}
+	}else {
 		ordStatus.status = "rejected"
-		ordStatus.reason = "time out"
+		ordStatus.reason = ifr.reason
 	}
+
 	return ordStatus
 }
 func CQG_GetPosition(accountID int32) *User {
@@ -185,12 +194,35 @@ func RecvMessage(connWithLock ConnWithLock, username string) {
 				case "logged_off":
 
 				case "information_report":
-					if (msg.GetInformationReport()[0].GetStatusCode() == 0 ) {
-						metadata := msg.GetInformationReport()[0].GetSymbolResolutionReport().GetContractMetadata()
-						metadataMap[metadata.GetContractId()] = metadata
-						chanInformationReport <- msg
-					} else {
-						fmt.Println("Error Information Request")
+					for _, inforeport := range msg.GetInformationReport(){
+						id := inforeport.GetId()
+						if ifr,ok := informationRequestMap.Load(id);ok{
+							ifr,_ := ifr.(InformationRequestStatus)
+							switch InformationReport_StatusCode_name[int32(inforeport.GetStatusCode())] {
+							case InformationReport_FAILURE.String():
+								fmt.Println("Error Information Request")
+								ifr.status= "rejected"
+								ifr.reason = inforeport.GetTextMessage()
+								ifr.channel <- ifr
+							case InformationReport_NOT_FOUND.String():
+								ifr.status= "rejected"
+								ifr.reason = inforeport.GetTextMessage()
+								ifr.channel <- ifr
+							case InformationReport_REQUEST_LIMIT_VIOLATION.String():
+								ifr.status= "rejected"
+								ifr.reason = "exceed request limit for the day"
+								ifr.channel <- ifr
+							default:
+								metadata := inforeport.GetSymbolResolutionReport().GetContractMetadata()
+								metadataMap[metadata.GetContractId()] = metadata
+								ifr.status= "ok"
+								ifr.contractID = metadata.GetContractId()
+								ifr.channel <- ifr
+							}
+						}else{
+							fmt.Println("unexpected information report message. error contact admin")
+						}
+
 					}
 				case "position_status":
 					for _, position := range msg.GetPositionStatus() {
@@ -734,4 +766,13 @@ type NewOrderCancelUpdateStatus struct {
 	status    string
 	reason    string
 	channel   chan NewOrderCancelUpdateStatus
+}
+
+type InformationRequestStatus struct {
+	id 	    uint32
+	username string
+	contractID uint32
+	status 	string
+	reason 	string
+	channel chan InformationRequestStatus
 }

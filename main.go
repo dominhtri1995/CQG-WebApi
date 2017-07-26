@@ -48,8 +48,7 @@ Loop:
 			}
 
 		case "2":
-			CQG_InformationRequest("BZU7", 1,"VTechapi")
-			ordStatus := CQG_NewOrderRequest(1, 16958204, 1, xid.New().String(), 2, 4700, 2, 1, 1, false, makeTimestamp())
+			ordStatus := CQG_NewOrderRequest(1, 16958204, "BZ", xid.New().String(), 2, 4700, 2, 1, 1, false, makeTimestamp())
 			if (ordStatus.status == "ok") {
 				fmt.Println("Order Placed Successfully")
 			} else if (ordStatus.status == "rejected") {
