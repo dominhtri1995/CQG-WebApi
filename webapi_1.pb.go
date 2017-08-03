@@ -542,7 +542,7 @@ const (
 	LoggedOff_BY_REQUEST LoggedOff_LogoffReason = 1
 	// User is redirected to another URL.
 	LoggedOff_REDIRECTED LoggedOff_LogoffReason = 2
-	// System logged off the user because of some server side reason.
+	// System logged off the user because of some server side Reason.
 	LoggedOff_FORCED LoggedOff_LogoffReason = 3
 	// System logged off the user because this session was re-assigned to another connection
 	// that took it over by 'restore session' operation
@@ -854,7 +854,7 @@ type ContractMetadata_MarginStyle int32
 const (
 	// The premium is paid on exercise/ expiry (position is included to OTE calculation).
 	ContractMetadata_FUTURE ContractMetadata_MarginStyle = 1
-	// Premium is subtracted from username balance when order is filled (position is included to MVO/UPL calculation).
+	// Premium is subtracted from Username balance when order is filled (position is included to MVO/UPL calculation).
 	ContractMetadata_PREMIUM ContractMetadata_MarginStyle = 2
 )
 
@@ -887,7 +887,7 @@ func (ContractMetadata_MarginStyle) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor0, []int{36, 0}
 }
 
-// Optional status code for a request or subscription, status is only sent for initial status and status changes.
+// Optional Status code for a request or subscription, Status is only sent for initial Status and Status changes.
 type InformationReport_StatusCode int32
 
 const (
@@ -902,7 +902,7 @@ const (
 	InformationReport_UPDATE InformationReport_StatusCode = 3
 	// Currently subscription is disconnect because of communication issues
 	// NOTE: Clients should not resubscribe in this case, the server will restore subscription with
-	// sending SUBSCRIBED status once communication issues are resolved
+	// sending SUBSCRIBED Status once communication issues are resolved
 	InformationReport_DISCONNECTED InformationReport_StatusCode = 4
 	// / failure codes (100+), subscription (if any) is dropped in case of failure.
 	// General failure.
@@ -1001,7 +1001,7 @@ func (TradeSubscription_SubscriptionScope) EnumDescriptor() ([]byte, []int) {
 type TradeSubscription_PublicationType int32
 
 const (
-	// Subscribe to a single username.
+	// Subscribe to a single Username.
 	TradeSubscription_ACCOUNT TradeSubscription_PublicationType = 1
 	// Subscribe to all accounts of a specific sales series.
 	TradeSubscription_SALES_SERIES TradeSubscription_PublicationType = 2
@@ -1095,7 +1095,7 @@ const (
 	TradeSubscriptionStatus_SUCCESS TradeSubscriptionStatus_StatusCode = 0
 	// Currently subscription is [partially] disconnect because of communication issues
 	// NOTE: Clients should not resubscribe in this case, the server will restore subscription with
-	// sending SUCCESS status once communication issues are resolved following with all necessary data updates
+	// sending SUCCESS Status once communication issues are resolved following with all necessary data updates
 	TradeSubscriptionStatus_DISCONNECTED TradeSubscriptionStatus_StatusCode = 1
 	// failure codes (100+)
 	TradeSubscriptionStatus_FAILURE TradeSubscriptionStatus_StatusCode = 101
@@ -1414,7 +1414,7 @@ func (x *CompoundOrder_Type) UnmarshalJSON(data []byte) error {
 }
 func (CompoundOrder_Type) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{89, 0} }
 
-// Current order status.
+// Current order Status.
 type OrderStatus_Status int32
 
 const (
@@ -1527,7 +1527,7 @@ const (
 	TransactionStatus_DISCONNECT TransactionStatus_Status = 17
 	// Synthetic order was sent to the actual execution system.
 	TransactionStatus_SYNTHETIC_ACTIVATED TransactionStatus_Status = 18
-	// Order status and/ or attributes are updated.
+	// Order Status and/ or attributes are updated.
 	TransactionStatus_UPDATE TransactionStatus_Status = 19
 	// Synthetic strategy execution failed, expect 'text_message'
 	// attribute with further details. The client may identify outright orders used
@@ -2047,7 +2047,7 @@ const (
 	MarketDataSubscriptionStatus_SUCCESS MarketDataSubscriptionStatus_StatusCode = 0
 	// Currently subscription is disconnected because of communication issues
 	// NOTE: Clients should not resubscribe in this case, the server will restore subscription with
-	// sending SUCCESS status once communication issues are resolved
+	// sending SUCCESS Status once communication issues are resolved
 	MarketDataSubscriptionStatus_DISCONNECTED MarketDataSubscriptionStatus_StatusCode = 1
 	// / failure codes (100+)
 	// general failure
@@ -2056,7 +2056,7 @@ const (
 	MarketDataSubscriptionStatus_INVALID_PARAMS MarketDataSubscriptionStatus_StatusCode = 102
 	// The user is not allowed to be subscribed to this Instrument.
 	MarketDataSubscriptionStatus_ACCESS_DENIED MarketDataSubscriptionStatus_StatusCode = 103
-	// Market data source was deleted because of expiration or by another reason.
+	// Market data source was deleted because of expiration or by another Reason.
 	MarketDataSubscriptionStatus_DELETED MarketDataSubscriptionStatus_StatusCode = 104
 	// The limit of the request number has been violated.
 	MarketDataSubscriptionStatus_REQUEST_LIMIT_VIOLATION MarketDataSubscriptionStatus_StatusCode = 105
@@ -2379,9 +2379,9 @@ const (
 	TimeAndSalesReport_SUCCESS TimeAndSalesReport_ResultCode = 0
 	// Delayed request is dropped by a client.
 	TimeAndSalesReport_DROPPED TimeAndSalesReport_ResultCode = 2
-	// Request processing status that indicates that currently processing is impossible because of communication issues.
+	// Request processing Status that indicates that currently processing is impossible because of communication issues.
 	// NOTE: Clients should not resend requests in this case, the server will restore processing with
-	// sending SUCCESS status once communication issues are resolved.
+	// sending SUCCESS Status once communication issues are resolved.
 	// If client is not interested in this request any longer it should send DROP request.
 	TimeAndSalesReport_DISCONNECTED TimeAndSalesReport_ResultCode = 4
 	// / failure codes (100+)
@@ -2559,9 +2559,9 @@ const (
 	TimeBarReport_DROPPED TimeBarReport_StatusCode = 2
 	// Unsolicited information update because of subscription.
 	TimeBarReport_UPDATE TimeBarReport_StatusCode = 3
-	// Subscription or request processing status that indicates that currently processing is impossible because of communication issues.
+	// Subscription or request processing Status that indicates that currently processing is impossible because of communication issues.
 	// NOTE: Clients should not resubscribe or resend requests in this case, the server will restore processing with
-	// sending SUCCESS or SUBSCRIBED status once communication issues are resolved.
+	// sending SUCCESS or SUBSCRIBED Status once communication issues are resolved.
 	// If client is not interested in this request or subscription any longer it should send DROP request.
 	TimeBarReport_DISCONNECTED TimeBarReport_StatusCode = 4
 	// / failure codes (100+), subscription (if any) is dropped in case of failure.
@@ -2671,10 +2671,10 @@ const (
 	VolumeProfileReport_SUCCESS VolumeProfileReport_ResultCode = 0
 	// Delayed request is dropped by a client.
 	VolumeProfileReport_DROPPED VolumeProfileReport_ResultCode = 2
-	// Request processing status that indicates that currently
+	// Request processing Status that indicates that currently
 	// processing is impossible because of communication issues.
 	// NOTE: Clients should not resend requests in this case,
-	// the server will restore processing with sending SUCCESS status
+	// the server will restore processing with sending SUCCESS Status
 	// once communication issues are resolved. If client is not interested
 	// in this request any longer it should send DROP request.
 	VolumeProfileReport_DISCONNECTED VolumeProfileReport_ResultCode = 4
@@ -2763,7 +2763,7 @@ type ClientMsg struct {
 	//    Any subscription that leads to exceeding this limit is failed.
 	TradeSubscription []*TradeSubscription `protobuf:"bytes,2,rep,name=trade_subscription,json=tradeSubscription" json:"trade_subscription,omitempty"`
 	// Order requests.
-	// Requests rate is limited, 300 orders per 10 seconds per username by default.
+	// Requests rate is limited, 300 orders per 10 seconds per Username by default.
 	OrderRequest []*OrderRequest `protobuf:"bytes,3,rep,name=order_request,json=orderRequest" json:"order_request,omitempty"`
 	// Market data subscriptions from client.
 	// Subscriptions number is limited, 200 simultaneous subscriptions by default.
@@ -4024,7 +4024,7 @@ func (m *ConcurrentConnectionJoin) GetIsSameAppType() bool {
 
 // Client request to logoff from the system and close the session.
 type Logoff struct {
-	// Optional logoff reason.
+	// Optional logoff Reason.
 	TextMessage      *string `protobuf:"bytes,1,opt,name=text_message,json=textMessage" json:"text_message,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -4338,7 +4338,7 @@ type UserSessionStateResult struct {
 	ResultCode *uint32 `protobuf:"varint,2,req,name=result_code,json=resultCode" json:"result_code,omitempty"`
 	// / User session information.
 	UserId           *int32  `protobuf:"zigzag32,3,opt,name=user_id,json=userId" json:"user_id,omitempty"`
-	Username         *string `protobuf:"bytes,4,opt,name=username" json:"username,omitempty"`
+	Username         *string `protobuf:"bytes,4,opt,name=Username" json:"Username,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
@@ -4688,7 +4688,7 @@ func (m *StrategyNodeDefinition) GetNestedStrategy() *NestedStrategy {
 type TickSizeByPrice struct {
 	// Size or a single market tick in correct price format.
 	TickSize *float64 `protobuf:"fixed64,1,req,name=tick_size,json=tickSize" json:"tick_size,omitempty"`
-	// Contract tick money value in the contract's currency.
+	// Contract tick money value in the contract's Currency.
 	// Zero if not applicable (e.g. for indexes).
 	TickValue *float64 `protobuf:"fixed64,2,req,name=tick_value,json=tickValue" json:"tick_value,omitempty"`
 	// The tick size and value apply from this price (inclusive) and upper, to the next TickSizeByPrice.minimum_price, if any.
@@ -4725,12 +4725,12 @@ func (m *TickSizeByPrice) GetMinimumPrice() float64 {
 
 // Describes tick size and value applied within some range of dates.
 type TickSizeByDateTillExpiration struct {
-	// Id of the record.  Starts from 0.  The record with id of 0 applies immediately before contract expiration, id of 1
+	// Id of the record.  Starts from 0.  The record with Id of 0 applies immediately before contract expiration, Id of 1
 	// applies before 0th, etc.
-	Id *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,req,name=Id" json:"Id,omitempty"`
 	// Size or a single market tick in correct price format.
 	TickSize *float64 `protobuf:"fixed64,2,req,name=tick_size,json=tickSize" json:"tick_size,omitempty"`
-	// Contract tick money value in the contract's currency.
+	// Contract tick money value in the contract's Currency.
 	// Zero if not applicable (e.g. for indexes).
 	TickValue        *float64 `protobuf:"fixed64,3,req,name=tick_value,json=tickValue" json:"tick_value,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
@@ -4815,10 +4815,10 @@ type ContractMetadata struct {
 	Title *string `protobuf:"bytes,6,req,name=title" json:"title,omitempty"`
 	// Size or a single market tick in correct price format.
 	TickSize *float64 `protobuf:"fixed64,7,req,name=tick_size,json=tickSize" json:"tick_size,omitempty"`
-	// Contract currency code (ISO 4217 based).
+	// Contract Currency code (ISO 4217 based).
 	// Empty string if not applicable (e.g. for indexes).
-	Currency *string `protobuf:"bytes,8,req,name=currency" json:"currency,omitempty"`
-	// Contract tick money value in the contract's currency.
+	Currency *string `protobuf:"bytes,8,req,name=Currency" json:"Currency,omitempty"`
+	// Contract tick money value in the contract's Currency.
 	// Zero if not applicable (e.g. for indexes).
 	TickValue *float64 `protobuf:"fixed64,9,req,name=tick_value,json=tickValue" json:"tick_value,omitempty"`
 	// CFI code (Classification of Financial Instruments, ISO 10962).
@@ -4853,7 +4853,7 @@ type ContractMetadata struct {
 	// and value among these.
 	// Only one of tick_sizes_by_price and tick_sizes_by_dte can be specified.
 	TickSizesByPrice []*TickSizeByPrice `protobuf:"bytes,23,rep,name=tick_sizes_by_price,json=tickSizesByPrice" json:"tick_sizes_by_price,omitempty"`
-	// Variable tick size by date till expiration (if available for the contract).  Sorted by id in ascending order.
+	// Variable tick size by date till expiration (if available for the contract).  Sorted by Id in ascending order.
 	// If variable tick sizes by DTE are available, tick_size and tick_value specify the tick size and value applicable at
 	// the moment of symbol resolution.
 	// Only one of tick_sizes_by_price and tick_sizes_by_dte can be specified.
@@ -5086,10 +5086,10 @@ func (m *ContractMetadata) GetStrategyDefinition() *StrategyDefinition {
 // There must be only one request type (e.g. accountsRequest and lastStatementBalancesRequest can not be sent at the same time).
 type InformationRequest struct {
 	// ID of a request and optional subscription that should be unique enough to match responses and updates with corresponding requests.
-	Id *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,req,name=Id" json:"Id,omitempty"`
 	// If set to true then corresponding reports are also sent when requested information is changed during the session,
 	// if set to false then subscription is dropped,
-	// if omitted then data is returned without changing subscription status.
+	// if omitted then data is returned without changing subscription Status.
 	Subscribe *bool `protobuf:"varint,2,opt,name=subscribe" json:"subscribe,omitempty"`
 	// Request for authorized accounts for trading.
 	// Only one subscription is possible.
@@ -5105,7 +5105,7 @@ type InformationRequest struct {
 	// Requests rate is limited, 100 per 24 hours by default.
 	// Requests are accepted only if the user is not subscribed and there is no pending request for this information at the moment.
 	LastStatementBalancesRequest *LastStatementBalancesRequest `protobuf:"bytes,5,opt,name=last_statement_balances_request,json=lastStatementBalancesRequest" json:"last_statement_balances_request,omitempty"`
-	// Request for currency rates for all brokerages user's accounts belong to.
+	// Request for Currency rates for all brokerages user's accounts belong to.
 	// Only one subscription is possible.
 	// Requests rate is limited, 100 per 24 hours by default.
 	// Requests are accepted only if the user is not subscribed and there is no pending request for this information at the moment.
@@ -5252,15 +5252,15 @@ func (m *InformationRequest) GetTradingDayTimerangeRequest() *TradingDayTimeRang
 }
 
 // Report with requested information and subscription updates.
-// It will contain only one report type at the same time (related to id).
+// It will contain only one report type at the same time (related to Id).
 type InformationReport struct {
 	// Report ID is equal to a corresponding request and subscription ID.
-	Id *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,req,name=Id" json:"Id,omitempty"`
 	// True means that requested data is complete at the moment, false means more report messages are expected for completeness.
 	IsReportComplete *bool `protobuf:"varint,2,opt,name=is_report_complete,json=isReportComplete,def=1" json:"is_report_complete,omitempty"`
 	// This field is associated with StatusCode enum type.
 	StatusCode *uint32 `protobuf:"varint,3,req,name=status_code,json=statusCode" json:"status_code,omitempty"`
-	// Possible details of status or failure.
+	// Possible details of Status or failure.
 	TextMessage *string `protobuf:"bytes,4,opt,name=text_message,json=textMessage" json:"text_message,omitempty"`
 	// Report with trading accounts.
 	AccountsReport *AccountsReport `protobuf:"bytes,5,opt,name=accounts_report,json=accountsReport" json:"accounts_report,omitempty"`
@@ -5268,7 +5268,7 @@ type InformationReport struct {
 	SymbolResolutionReport *SymbolResolutionReport `protobuf:"bytes,6,opt,name=symbol_resolution_report,json=symbolResolutionReport" json:"symbol_resolution_report,omitempty"`
 	// Report with balances from the last statement for all authorized accounts.
 	LastStatementBalancesReport *LastStatementBalancesReport `protobuf:"bytes,7,opt,name=last_statement_balances_report,json=lastStatementBalancesReport" json:"last_statement_balances_report,omitempty"`
-	// Report with currency rates per brokerage.
+	// Report with Currency rates per brokerage.
 	CurrencyRatesReport *CurrencyRatesReport `protobuf:"bytes,8,opt,name=currency_rates_report,json=currencyRatesReport" json:"currency_rates_report,omitempty"`
 	// Report with session information.
 	SessionInformationReport *SessionInformationReport `protobuf:"bytes,9,opt,name=session_information_report,json=sessionInformationReport" json:"session_information_report,omitempty"`
@@ -5418,8 +5418,8 @@ func (m *AccountsRequest) String() string            { return proto.CompactTextS
 func (*AccountsRequest) ProtoMessage()               {}
 func (*AccountsRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{39} }
 
-// Response with a list of authorized accounts grouped by brokerage firms and internal sales series (username groups),
-// the same username can not belong to more than one username group.
+// Response with a list of authorized accounts grouped by brokerage firms and internal sales series (Username groups),
+// the same Username can not belong to more than one Username group.
 type AccountsReport struct {
 	// List or brokerages with accounts the user works with.
 	Brokerage        []*Brokerage `protobuf:"bytes,1,rep,name=brokerage" json:"brokerage,omitempty"`
@@ -5441,7 +5441,7 @@ func (m *AccountsReport) GetBrokerage() []*Brokerage {
 // List of brokerage accounts.
 type Brokerage struct {
 	// Brokerage firm ID in CQG trade routing system.
-	Id *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,req,name=Id" json:"Id,omitempty"`
 	// Brokerage firm name.
 	Name *string `protobuf:"bytes,2,req,name=name" json:"name,omitempty"`
 	// List of sales series.
@@ -5482,7 +5482,7 @@ type SalesSeries struct {
 	// Sales series name.
 	Name *string `protobuf:"bytes,2,req,name=name" json:"name,omitempty"`
 	// List of accounts.
-	Account          []*Account `protobuf:"bytes,3,rep,name=username" json:"username,omitempty"`
+	Account          []*Account `protobuf:"bytes,3,rep,name=Username" json:"Username,omitempty"`
 	XXX_unrecognized []byte     `json:"-"`
 }
 
@@ -5512,7 +5512,7 @@ func (m *SalesSeries) GetAccount() []*Account {
 	return nil
 }
 
-// Trade routing username data.
+// Trade routing Username data.
 type Account struct {
 	// Account ID in CQG trade routing system.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
@@ -5520,14 +5520,14 @@ type Account struct {
 	BrokerageAccountId *string `protobuf:"bytes,2,req,name=brokerage_account_id,json=brokerageAccountId" json:"brokerage_account_id,omitempty"`
 	// Account name in CQG trade routing system.
 	Name *string `protobuf:"bytes,3,req,name=name" json:"name,omitempty"`
-	// Last statement date for this username
+	// Last statement date for this Username
 	// (brokerage local date in time format, use date part only).
 	LastStatementDate *int64 `protobuf:"zigzag64,4,req,name=last_statement_date,json=lastStatementDate" json:"last_statement_date,omitempty"`
-	// True if user can only monitor this username without trading.
+	// True if user can only monitor this Username without trading.
 	IsViewOnly *bool `protobuf:"varint,5,opt,name=is_view_only,json=isViewOnly" json:"is_view_only,omitempty"`
-	// True if user was unauthorized and is not able to use/ see this username anymore.
+	// True if user was unauthorized and is not able to use/ see this Username anymore.
 	IsUnauthorized *bool `protobuf:"varint,6,opt,name=is_unauthorized,json=isUnauthorized" json:"is_unauthorized,omitempty"`
-	// ID of cluster of common properties the username belongs to (if any).
+	// ID of cluster of common properties the Username belongs to (if any).
 	AccountClusterId *int64 `protobuf:"zigzag64,7,opt,name=account_cluster_id,json=accountClusterId" json:"account_cluster_id,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -5591,7 +5591,7 @@ func (m *Account) GetAccountClusterId() int64 {
 //   a) If the requested symbol points to a symbol prefix rather than a specific contract then it is resolved into the most active contract for
 //      this symbol prefix (e.g. 'EP' is resolved to 'EPU3').
 //      The update is sent when an active contract is changed (e.g. the update might contain the following 'EPZ3')
-//   b) If the requested symbol points to a specific contract that is expired already then status code NOT_FOUND is returned in InformationReport.
+//   b) If the requested symbol points to a specific contract that is expired already then Status code NOT_FOUND is returned in InformationReport.
 //   c) If the requested symbol points to a specific contract that is tradable right now then it is resolved to itself. Update is sent only when
 //      meta-data for such contract is changed or expired. In case of expiration SymbolResolutionReport is returned with 'deleted' field set to True.
 //   d) If requested symbol points to an option instrument without specific month and strike it is resolved to the lead (first non-spot) month
@@ -5683,21 +5683,21 @@ func (m *LastStatementBalancesReport) GetBalance() []*Balance {
 	return nil
 }
 
-// Balance record for one of the accounts and one of the currencies (id is used as a key for updates).
+// Balance record for one of the accounts and one of the currencies (Id is used as a key for updates).
 // Values like OTE, UPL and MVO are from statements and won't be updated in real time but after each next statement.
-// Money related values are in the specified currency.
-// NOTE: There could be more then one balance for one username and one currency.
+// Money related values are in the specified Currency.
+// NOTE: There could be more then one balance for one Username and one Currency.
 //       Not all values for a balance record are provided by all statements, it is up to Brokerage to include such values and only
-//       currency and ending cash balance are required to be valid.
+//       Currency and ending cash balance are required to be valid.
 type Balance struct {
-	// Surrogate id as a key for updates.
-	Id *int32 `protobuf:"zigzag32,1,req,name=id" json:"id,omitempty"`
+	// Surrogate Id as a key for updates.
+	Id *int32 `protobuf:"zigzag32,1,req,name=Id" json:"Id,omitempty"`
 	// Account of this balance record.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// Statement date this positions is related.
 	StatementDate *int64 `protobuf:"zigzag64,3,req,name=statement_date,json=statementDate" json:"statement_date,omitempty"`
 	// Currency code (ISO 4217 based).
-	Currency *string `protobuf:"bytes,4,req,name=currency" json:"currency,omitempty"`
+	Currency *string `protobuf:"bytes,4,req,name=Currency" json:"Currency,omitempty"`
 	// Ending Cash Balance.
 	Balance *float64 `protobuf:"fixed64,5,req,name=balance" json:"balance,omitempty"`
 	// Total Account Value.
@@ -5705,9 +5705,9 @@ type Balance struct {
 	// Open Trade Equity for Futures.
 	Ote *float64 `protobuf:"fixed64,7,req,name=ote" json:"ote,omitempty"`
 	// Unrealized profit-loss.
-	Upl *float64 `protobuf:"fixed64,8,req,name=upl" json:"upl,omitempty"`
+	Upl *float64 `protobuf:"fixed64,8,req,name=Upl" json:"Upl,omitempty"`
 	// Market Value of options.
-	Mvo *float64 `protobuf:"fixed64,9,req,name=mvo" json:"mvo,omitempty"`
+	Mvo *float64 `protobuf:"fixed64,9,req,name=Mvo" json:"Mvo,omitempty"`
 	// Cash Excess.
 	CashExcess *float64 `protobuf:"fixed64,10,req,name=cash_excess,json=cashExcess" json:"cash_excess,omitempty"`
 	// Collateral on Deposit.
@@ -5806,7 +5806,7 @@ func (m *Balance) GetInitialMargin() float64 {
 	return 0
 }
 
-// Request for currency rates for all brokerages user's accounts belong to.
+// Request for Currency rates for all brokerages user's accounts belong to.
 type CurrencyRatesRequest struct {
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -5816,7 +5816,7 @@ func (m *CurrencyRatesRequest) String() string            { return proto.Compact
 func (*CurrencyRatesRequest) ProtoMessage()               {}
 func (*CurrencyRatesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{49} }
 
-// Report with currency rates per brokerage.
+// Report with Currency rates per brokerage.
 // It will be sent as a response to a corresponding request
 // and after each statement processing (if subscribed).
 type CurrencyRatesReport struct {
@@ -5841,7 +5841,7 @@ func (m *CurrencyRatesReport) GetBrokerageCurrencyRates() []*BrokerageCurrencyRa
 type BrokerageCurrencyRates struct {
 	// Brokerage ID.
 	BrokerageId *uint32 `protobuf:"varint,1,req,name=brokerage_id,json=brokerageId" json:"brokerage_id,omitempty"`
-	// Master currency code to which rates are provided (ISO 4217 based).
+	// Master Currency code to which rates are provided (ISO 4217 based).
 	MasterCurrency *string `protobuf:"bytes,2,req,name=master_currency,json=masterCurrency" json:"master_currency,omitempty"`
 	// Statement date.
 	StatementDate *int64 `protobuf:"zigzag64,3,req,name=statement_date,json=statementDate" json:"statement_date,omitempty"`
@@ -5883,10 +5883,10 @@ func (m *BrokerageCurrencyRates) GetCurrencyRate() []*CurrencyRate {
 	return nil
 }
 
-// Rate of one currency to a master currency for the brokerage.
+// Rate of one Currency to a master Currency for the brokerage.
 type CurrencyRate struct {
 	// Currency code (ISO 4217 based).
-	Currency *string `protobuf:"bytes,2,req,name=currency" json:"currency,omitempty"`
+	Currency *string `protobuf:"bytes,2,req,name=Currency" json:"Currency,omitempty"`
 	// Exchange rate.
 	Rate             *float64 `protobuf:"fixed64,3,req,name=rate" json:"rate,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
@@ -6258,7 +6258,7 @@ func (m *SymbolsByUnderlyingReport) GetSymbol() []*Symbol {
 
 // Request a list of child symbols for a higher level symbol.
 type ChildSymbolsRequest struct {
-	// id of the parent symbol.
+	// Id of the parent symbol.
 	ParentSymbolId   *string `protobuf:"bytes,1,req,name=parent_symbol_id,json=parentSymbolId" json:"parent_symbol_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -6296,7 +6296,7 @@ func (m *ChildSymbolsReport) GetSymbol() []*Symbol {
 
 // Request at-the-money strike for the option maturity
 type AtTheMoneyStrikeRequest struct {
-	// Option maturity symbol id representing the parent symbol for the option strike list of the same underlying and maturity period (see Symbol.id).
+	// Option maturity symbol Id representing the parent symbol for the option strike list of the same underlying and maturity period (see Symbol.Id).
 	OptionMaturitySymbolId *string `protobuf:"bytes,1,req,name=option_maturity_symbol_id,json=optionMaturitySymbolId" json:"option_maturity_symbol_id,omitempty"`
 	XXX_unrecognized       []byte  `json:"-"`
 }
@@ -6606,7 +6606,7 @@ func (m *TradingDayTimeRange) GetEndUtcTime() int64 {
 // Symbol structure
 type Symbol struct {
 	// Symbol Identifier.
-	Id *string `protobuf:"bytes,1,req,name=id" json:"id,omitempty"`
+	Id *string `protobuf:"bytes,1,req,name=Id" json:"Id,omitempty"`
 	// Symbol readable name.
 	Name *string `protobuf:"bytes,2,req,name=name" json:"name,omitempty"`
 	// Symbol description.
@@ -6758,11 +6758,11 @@ func (m *StrategyDefinitionReport) GetContractMetadata() *ContractMetadata {
 
 // Subscription to trade routing data and notifications about trading information updates.
 // Client can be subscribed to several publications.
-// If some username is subscribed by several publications then client will receive a separate snapshot per subscription
+// If some Username is subscribed by several publications then client will receive a separate snapshot per subscription
 // but one real time update with a list of subscriptions.
 type TradeSubscription struct {
 	// ID of a subscription that should be unique enough to match responses and updates with corresponding requests.
-	Id *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,req,name=Id" json:"Id,omitempty"`
 	// This field is associated with SubscriptionScope enum type.
 	SubscriptionScope []uint32 `protobuf:"varint,2,rep,name=subscription_scope,json=subscriptionScope" json:"subscription_scope,omitempty"`
 	// This field is associated with PublicationType enum type.
@@ -6775,11 +6775,11 @@ type TradeSubscription struct {
 	SalesSeriesNumber *string `protobuf:"bytes,5,opt,name=sales_series_number,json=salesSeriesNumber" json:"sales_series_number,omitempty"`
 	// Brokerage ID when publicationType = BROKERAGE or SALES_SERIES.
 	BrokerageId *uint32 `protobuf:"varint,6,opt,name=brokerage_id,json=brokerageId" json:"brokerage_id,omitempty"`
-	// True to subscribe, false to unsubscribe (only id value is used to unsubscribe).
+	// True to subscribe, false to unsubscribe (only Id value is used to unsubscribe).
 	Subscribe *bool `protobuf:"varint,7,req,name=subscribe" json:"subscribe,omitempty"`
 	// Optionally limit request to receive information about orders that were updated/ added after specified server related time (inclusive).
 	// It is used to reduce amount of information necessary to send after re-connection.
-	// Client should set this time equal to the last received order status time ('status_utc_time' field) in UTC to avoid gaps and
+	// Client should set this time equal to the last received order Status time ('status_utc_time' field) in UTC to avoid gaps and
 	// be ready for duplicates that have to be detected by corresponding IDs.
 	LastOrderUpdateUtcTime *int64 `protobuf:"zigzag64,8,opt,name=last_order_update_utc_time,json=lastOrderUpdateUtcTime" json:"last_order_update_utc_time,omitempty"`
 	// True means sending only real time data and skip sending an initial orders snapshot, send initial snapshot otherwise.
@@ -6898,11 +6898,11 @@ func (m *TradeSubscription) GetHistoricalMatchingAlgorithm() uint32 {
 	return 0
 }
 
-// Server status for a trade subscription.
-// It is sent before or along with a snapshot of initial status information.
+// Server Status for a trade subscription.
+// It is sent before or along with a snapshot of initial Status information.
 type TradeSubscriptionStatus struct {
 	// Subscription Id this result is sent for.
-	Id *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,req,name=Id" json:"Id,omitempty"`
 	// Subscription result.
 	// This field is associated with StatusCode enum type.
 	StatusCode *uint32 `protobuf:"varint,2,req,name=status_code,json=statusCode" json:"status_code,omitempty"`
@@ -7098,7 +7098,7 @@ func (m *OrderRequest) GetClientRegulatoryAlgorithmId() uint32 {
 	return 0
 }
 
-// Low-level order request reject. It is sent only if direct order status updates are impossible.
+// Low-level order request reject. It is sent only if direct order Status updates are impossible.
 type OrderRequestReject struct {
 	// ID of the order request this reject corresponds to.
 	RequestId *uint32 `protobuf:"varint,1,req,name=request_id,json=requestId" json:"request_id,omitempty"`
@@ -7163,9 +7163,9 @@ func (m *NewOrder) GetSuspend() bool {
 	return false
 }
 
-// Trade routing order. It is used as new order request and as a part of order status updates.
+// Trade routing order. It is used as new order request and as a part of order Status updates.
 type Order struct {
-	// Id of an username that is/ was used to place an order.
+	// Id of an Username that is/ was used to place an order.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// Client side time when an order was submitted (UTC).
 	WhenUtcTime *int64 `protobuf:"zigzag64,2,req,name=when_utc_time,json=whenUtcTime" json:"when_utc_time,omitempty"`
@@ -7460,7 +7460,7 @@ func (m *UserAttribute) GetDelete() bool {
 type SyntheticStrategyProperties struct {
 	// Synthtetic strategy trading parameters.
 	StrategyTradingParameters *StrategyTradingParameters `protobuf:"bytes,1,opt,name=strategy_trading_parameters,json=strategyTradingParameters" json:"strategy_trading_parameters,omitempty"`
-	// Parent synthetic order id that led to this order's (automatic) placement;
+	// Parent synthetic order Id that led to this order's (automatic) placement;
 	// allows client to show the link to user.
 	// Note: this is the original synthetic order's ID (OrderStatus.order_id), not affected by any modifications.
 	OriginOrderId *string `protobuf:"bytes,2,opt,name=origin_order_id,json=originOrderId" json:"origin_order_id,omitempty"`
@@ -7508,9 +7508,9 @@ func (m *SyntheticStrategyProperties) GetNodeIndex() uint32 {
 
 // Modify order request, include only fields that are supposed to be modified.
 type ModifyOrder struct {
-	// Order id assigned by server after last modification.
+	// Order Id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,1,req,name=order_id,json=orderId" json:"order_id,omitempty"`
-	// ID of the order's username.
+	// ID of the order's Username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// This client order ID of the order to modify.
 	OrigClOrderId *string `protobuf:"bytes,3,req,name=orig_cl_order_id,json=origClOrderId" json:"orig_cl_order_id,omitempty"`
@@ -7673,9 +7673,9 @@ func (m *ModifyOrder) GetGoodThruUtcTime() int64 {
 
 // Cancel order request.
 type CancelOrder struct {
-	// Order id assigned by server after last modification.
+	// Order Id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,1,req,name=order_id,json=orderId" json:"order_id,omitempty"`
-	// ID of the order's username.
+	// ID of the order's Username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// This client order ID of the order to cancel.
 	OrigClOrderId *string `protobuf:"bytes,3,req,name=orig_cl_order_id,json=origClOrderId" json:"orig_cl_order_id,omitempty"`
@@ -7729,9 +7729,9 @@ func (m *CancelOrder) GetWhenUtcTime() int64 {
 
 // Activate suspended (parked) order request.
 type ActivateOrder struct {
-	// Order id assigned by server after last modification.
+	// Order Id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,1,req,name=order_id,json=orderId" json:"order_id,omitempty"`
-	// ID of the order's username.
+	// ID of the order's Username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// This client order ID of the order to activate.
 	OrigClOrderId *string `protobuf:"bytes,3,req,name=orig_cl_order_id,json=origClOrderId" json:"orig_cl_order_id,omitempty"`
@@ -7787,7 +7787,7 @@ func (m *ActivateOrder) GetWhenUtcTime() int64 {
 type ModifyUserAttributes struct {
 	// ID of the order chain.
 	ChainOrderId *string `protobuf:"bytes,1,req,name=chain_order_id,json=chainOrderId" json:"chain_order_id,omitempty"`
-	// ID of the order's username.
+	// ID of the order's Username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// List of attributes to modify.
 	UserAttribute []*UserAttribute `protobuf:"bytes,3,rep,name=user_attribute,json=userAttribute" json:"user_attribute,omitempty"`
@@ -7929,9 +7929,9 @@ func (m *CompoundOrderEntry) GetCompoundOrder() *CompoundOrder {
 
 // Suspend (park) order request.
 type SuspendOrder struct {
-	// Order id assigned by server after last modification.
+	// Order Id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,1,req,name=order_id,json=orderId" json:"order_id,omitempty"`
-	// ID of the order's username.
+	// ID of the order's Username.
 	AccountId *int32 `protobuf:"zigzag32,2,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// This client order ID of the order to suspend (park).
 	OrigClOrderId *string `protobuf:"bytes,3,req,name=orig_cl_order_id,json=origClOrderId" json:"orig_cl_order_id,omitempty"`
@@ -7995,14 +7995,14 @@ func (m *SuspendOrder) GetActivationUtcTime() int64 {
 
 // Status of order.
 type OrderStatus struct {
-	// List of trade subscription IDs this status is related to.
+	// List of trade subscription IDs this Status is related to.
 	SubscriptionId []uint32 `protobuf:"varint,1,rep,name=subscription_id,json=subscriptionId" json:"subscription_id,omitempty"`
 	// True if this is a snapshot related message.
 	// Since snapshot might be sent in several messages (including none), client should use TradeSnapshotCompletion message as
 	// an indicator of complete snapshot delivery for a particular subscription.
 	IsSnapshot *bool `protobuf:"varint,2,opt,name=is_snapshot,json=isSnapshot" json:"is_snapshot,omitempty"`
 	// This field is associated with Status enum type.
-	Status *uint32 `protobuf:"varint,3,req,name=status" json:"status,omitempty"`
+	Status *uint32 `protobuf:"varint,3,req,name=Status" json:"Status,omitempty"`
 	// Order ID assigned by server.
 	// It is changed by server after each modify request acknowledgment.
 	OrderId *string `protobuf:"bytes,4,req,name=order_id,json=orderId" json:"order_id,omitempty"`
@@ -8030,7 +8030,7 @@ type OrderStatus struct {
 	// order with updated attributes. server may not send it if order attributes remained the same since last update
 	Order *Order `protobuf:"bytes,14,opt,name=order" json:"order,omitempty"`
 	// List of [last] transactions. In case of initial snapshot (if last_orders_update_utc_time was not set in TradeSubscription)
-	// all available transactions are sent. This list can be empty if this status is sent to update order attributes only
+	// all available transactions are sent. This list can be empty if this Status is sent to update order attributes only
 	// (e.g. to update prices of trailing orders).
 	TransactionStatus []*TransactionStatus `protobuf:"bytes,15,rep,name=transaction_status,json=transactionStatus" json:"transaction_status,omitempty"`
 	// User who placed the order, or user on whose behalf the order was placed.
@@ -8045,9 +8045,9 @@ type OrderStatus struct {
 	// If in your code you process orders first and positions second then during processing orders you may
 	// encounter order with yet unknown contract_id.
 	// In this case you should look for matching contract metadata in positions.
-	// The opposite is also true: contract metadata for positions can be in order status messages.
+	// The opposite is also true: contract metadata for positions can be in order Status messages.
 	ContractMetadata []*ContractMetadata `protobuf:"bytes,19,rep,name=contract_metadata,json=contractMetadata" json:"contract_metadata,omitempty"`
-	// Id of an username for this order status.
+	// Id of an Username for this order Status.
 	AccountId *int32 `protobuf:"zigzag32,20,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// If the order is part of a compound order then this field describe the structure of the compound.
 	CompoundOrderStructure *CompoundOrderStructure `protobuf:"bytes,21,opt,name=compound_order_structure,json=compoundOrderStructure" json:"compound_order_structure,omitempty"`
@@ -8228,7 +8228,7 @@ func (m *OrderStatus) GetStrategyProperties() *SyntheticStrategyProperties {
 // All attributes are at the transaction moment.
 type TransactionStatus struct {
 	// This field is associated with Status enum type.
-	Status *uint32 `protobuf:"varint,1,req,name=status" json:"status,omitempty"`
+	Status *uint32 `protobuf:"varint,1,req,name=Status" json:"Status,omitempty"`
 	// Order transaction identifier, unique within order chain.
 	TransId *uint64 `protobuf:"varint,2,req,name=trans_id,json=transId" json:"trans_id,omitempty"`
 	// Transaction time assigned by server (UTC).
@@ -8597,7 +8597,7 @@ func (m *TransactionStatus) GetEffectiveRegulatoryAlgorithmId() uint32 {
 
 // Trade per specific outright contract.
 type Trade struct {
-	// Trade ID assigned by server, unique within username.
+	// Trade ID assigned by server, unique within Username.
 	TradeId *string `protobuf:"bytes,1,req,name=trade_id,json=tradeId" json:"trade_id,omitempty"`
 	// Server contract identifier.
 	ContractId *uint32 `protobuf:"varint,2,req,name=contract_id,json=contractId" json:"contract_id,omitempty"`
@@ -8619,7 +8619,7 @@ type Trade struct {
 	TradeCounterparty *string `protobuf:"bytes,9,opt,name=trade_counterparty,json=tradeCounterparty" json:"trade_counterparty,omitempty"`
 	// Flag that trade was made as aggressive.
 	IsAggressive *bool `protobuf:"varint,10,opt,name=is_aggressive,json=isAggressive" json:"is_aggressive,omitempty"`
-	// Execution id of the leg fill
+	// Execution Id of the leg fill
 	LegExecutionId   *string `protobuf:"bytes,11,opt,name=leg_execution_id,json=legExecutionId" json:"leg_execution_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -8708,7 +8708,7 @@ func (m *Trade) GetLegExecutionId() string {
 
 // Describes a leg order fill that contributes to a synthetic strategy order fill.
 type StrategyLegFill struct {
-	// Order id for the leg order (the original OrderStatus.order_id)
+	// Order Id for the leg order (the original OrderStatus.order_id)
 	LegOrderId *string `protobuf:"bytes,1,req,name=leg_order_id,json=legOrderId" json:"leg_order_id,omitempty"`
 	// Leg_execution_id of the corresponding Trade message for the leg order fill.
 	LegExecutionId *string `protobuf:"bytes,2,req,name=leg_execution_id,json=legExecutionId" json:"leg_execution_id,omitempty"`
@@ -8822,7 +8822,7 @@ func (m *CompoundOrderStructure) GetCompoundOrderEntry() []*CompoundOrderStructu
 
 // Entry of a compound order structure. One of optional fields is specified.
 type CompoundOrderStructureEntry struct {
-	// Regular order id as assigned by server.
+	// Regular order Id as assigned by server.
 	ChainOrderId *string `protobuf:"bytes,1,opt,name=chain_order_id,json=chainOrderId" json:"chain_order_id,omitempty"`
 	// Sub-compound order structure entry.
 	CompoundOrderStructure *CompoundOrderStructure `protobuf:"bytes,2,opt,name=compound_order_structure,json=compoundOrderStructure" json:"compound_order_structure,omitempty"`
@@ -8883,7 +8883,7 @@ type StrategyMarketOrderParameters struct {
 	// For Iceberg orders:
 	// 'true' means replenish qty on the filled leg immediately upon receiving primary fill;
 	// 'false' means to 'freeze' the filled leg (don't add any more qty to it) until SS order
-	//         is filled or its qty changes for some other reason, e.g. replace request.
+	//         is filled or its qty changes for some other Reason, e.g. replace request.
 	ReplenishOnPrimaryFill *bool  `protobuf:"varint,2,opt,name=replenish_on_primary_fill,json=replenishOnPrimaryFill" json:"replenish_on_primary_fill,omitempty"`
 	XXX_unrecognized       []byte `json:"-"`
 }
@@ -9417,7 +9417,7 @@ type StrategyLimitOrderParameters struct {
 	// For Iceberg orders:
 	//  'true' means replenish quantity on the filled leg immediately upon receiving primary fill;
 	//  'false' means to 'freeze' the filled leg (don't add any more qty to it) until SS order
-	//          is filled or its quantity changes for some other reason, e.g. replace request.
+	//          is filled or its quantity changes for some other Reason, e.g. replace request.
 	ReplenishOnPrimaryFill *bool `protobuf:"varint,2,opt,name=replenish_on_primary_fill,json=replenishOnPrimaryFill" json:"replenish_on_primary_fill,omitempty"`
 	// Defines mode of overfill handling for this limit SS order. One of OverfillMode enums.
 	// AUTOMATIC_HEDGING is default.
@@ -9498,7 +9498,7 @@ type StrategyStopOrderParameters struct {
 	// For Iceberg orders:
 	//  'true' means replenish qty on the filled leg immediately upon receiving primary fill;
 	//  'false' means to 'freeze' the filled leg (don't add any more qty to it) until SS order
-	//          is filled or its qty changes for some other reason, e.g. replace request.
+	//          is filled or its qty changes for some other Reason, e.g. replace request.
 	ReplenishOnPrimaryFill *bool  `protobuf:"varint,3,opt,name=replenish_on_primary_fill,json=replenishOnPrimaryFill" json:"replenish_on_primary_fill,omitempty"`
 	XXX_unrecognized       []byte `json:"-"`
 }
@@ -9764,11 +9764,11 @@ func (m *StrategyTradingParameters) GetLegParameters() []*StrategyOrderLegParame
 	return nil
 }
 
-// Status of a contract open positions and purchase and sales for a specific username for the current day
+// Status of a contract open positions and purchase and sales for a specific Username for the current day
 // (contractId and accountId are used as a key for updates).
 // Contract position is deleted when all open positions and purchase and sales groups are deleted.
 type PositionStatus struct {
-	// List of trade subscription IDs this status is related to.
+	// List of trade subscription IDs this Status is related to.
 	SubscriptionId []uint32 `protobuf:"varint,1,rep,name=subscription_id,json=subscriptionId" json:"subscription_id,omitempty"`
 	// True if this is a snapshot related message.
 	// Since snapshot might be sent in several messages (including none), client should use TradeSnapshotCompletion message as
@@ -9791,7 +9791,7 @@ type PositionStatus struct {
 	// If in your code you process orders first and positions second then during processing orders you may
 	// encounter order with yet unknown contract_id.
 	// In this case you should look for matching contract metadata in positions.
-	// The opposite is also true: contract metadata for positions can be in order status messages.
+	// The opposite is also true: contract metadata for positions can be in order Status messages.
 	ContractMetadata *ContractMetadata `protobuf:"bytes,8,opt,name=contract_metadata,json=contractMetadata" json:"contract_metadata,omitempty"`
 	XXX_unrecognized []byte            `json:"-"`
 }
@@ -9858,11 +9858,11 @@ func (m *PositionStatus) GetContractMetadata() *ContractMetadata {
 }
 
 // Account and contract open position.
-// There could be more than one position per username and contract.
-// (id is used as a key for updates).
+// There could be more than one position per Username and contract.
+// (Id is used as a key for updates).
 type OpenPosition struct {
-	// Surrogate id as a key for updates.
-	Id *int32 `protobuf:"zigzag32,1,req,name=id" json:"id,omitempty"`
+	// Surrogate Id as a key for updates.
+	Id *int32 `protobuf:"zigzag32,1,req,name=Id" json:"Id,omitempty"`
 	// Position size, zero means that this position is deleted.
 	Qty *uint32 `protobuf:"varint,2,req,name=qty" json:"qty,omitempty"`
 	// Position average price.
@@ -9935,9 +9935,9 @@ func (m *OpenPosition) GetIsAggregated() bool {
 
 // Purchase and sales group that represents offset trades (usually one sell and one buy trade)
 type PurchaseAndSalesGroup struct {
-	// Surrogate id as a key for updates.
-	Id *int32 `protobuf:"zigzag32,1,req,name=id" json:"id,omitempty"`
-	// Profit/ loss (in contract currency) of the group.
+	// Surrogate Id as a key for updates.
+	Id *int32 `protobuf:"zigzag32,1,req,name=Id" json:"Id,omitempty"`
+	// Profit/ loss (in contract Currency) of the group.
 	RealizedProfitLoss *float64 `protobuf:"fixed64,2,req,name=realized_profit_loss,json=realizedProfitLoss" json:"realized_profit_loss,omitempty"`
 	// list of matched trades in a group
 	// in case of group updates the whole list is sent
@@ -9972,7 +9972,7 @@ func (m *PurchaseAndSalesGroup) GetMatchedTrade() []*MatchedTrade {
 }
 
 // Specific trade or position that is a part of a purchase and sales group.
-// (id is used as a key for updates).
+// (Id is used as a key for updates).
 type MatchedTrade struct {
 	// Matched size.
 	// Zero means matched trade is deleted.
@@ -10047,41 +10047,41 @@ func (m *MatchedTrade) GetIsAggregated() bool {
 	return false
 }
 
-// Status of the collateral for a specific username.
+// Status of the collateral for a specific Username.
 // An update is sent once it is changed, updates might be consolidated in case of frequent changes.
 type CollateralStatus struct {
-	// List of trade subscription IDs this status is related to.
+	// List of trade subscription IDs this Status is related to.
 	SubscriptionId []uint32 `protobuf:"varint,1,rep,name=subscription_id,json=subscriptionId" json:"subscription_id,omitempty"`
 	// True if this is a snapshot related message.
 	// Since snapshot might be sent in several messages (including none), client should use TradeSnapshotCompletion message as
 	// an indicator of complete snapshot delivery for a particular subscription.
 	IsSnapshot *bool `protobuf:"varint,2,opt,name=is_snapshot,json=isSnapshot" json:"is_snapshot,omitempty"`
-	// Account id of this status.
+	// Account Id of this Status.
 	AccountId *int32 `protobuf:"zigzag32,3,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	// Currency code of margin and PP values (ISO 4217 based).
-	Currency *string `protobuf:"bytes,4,req,name=currency" json:"currency,omitempty"`
+	Currency *string `protobuf:"bytes,4,req,name=Currency" json:"Currency,omitempty"`
 	// Current total margin.
-	TotalMargin *float64 `protobuf:"fixed64,5,req,name=total_margin,json=totalMargin" json:"total_margin,omitempty"`
-	// Available username funds including balance, realized profit (or loss), collateral and credits.
-	// OTE and MVO are included regarding the username risk parameters.
-	PurchasingPower *float64 `protobuf:"fixed64,6,req,name=purchasing_power,json=purchasingPower" json:"purchasing_power,omitempty"`
+	TotalMargin *float64 `protobuf:"fixed64,5,req,name=total_margin,json=TotalMargin" json:"total_margin,omitempty"`
+	// Available Username funds including balance, realized profit (or loss), collateral and credits.
+	// OTE and MVO are included regarding the Username risk parameters.
+	PurchasingPower *float64 `protobuf:"fixed64,6,req,name=purchasing_power,json=PurchasingPower" json:"purchasing_power,omitempty"`
 	// Open trade equity, or potential profit (or loss) from futures and future-style options positions
 	// based on opening price of the position and the current future trade/best bid/best ask
-	// (regarding to the risk username settings) or settlement price if trade is not available.
+	// (regarding to the risk Username settings) or settlement price if trade is not available.
 	// Included if purchasing power depends on it.
 	Ote *float64 `protobuf:"fixed64,7,opt,name=ote" json:"ote,omitempty"`
 	// Market value of options calculated as the current market trade/best bid/best ask of the option
-	// (regarding to the risk username settings) times the number of options
+	// (regarding to the risk Username settings) times the number of options
 	// (positive for long options and negative for short options) in the portfolio.
 	// Included if purchasing power depends on it.
-	Mvo *float64 `protobuf:"fixed64,8,opt,name=mvo" json:"mvo,omitempty"`
+	Mvo *float64 `protobuf:"fixed64,8,opt,name=Mvo" json:"Mvo,omitempty"`
 	// Market value of futures calculated as the current market trade/best bid/best ask
-	// (regarding to the risk username settings) times the number of futures
+	// (regarding to the risk Username settings) times the number of futures
 	// (positive for long and negative for short) in the portfolio.
 	// Included if applicable.
-	Mvf *float64 `protobuf:"fixed64,10,opt,name=mvf" json:"mvf,omitempty"`
-	// Allowable margin credit of the username
-	MarginCredit     *float64 `protobuf:"fixed64,9,opt,name=margin_credit,json=marginCredit" json:"margin_credit,omitempty"`
+	Mvf *float64 `protobuf:"fixed64,10,opt,name=Mvf" json:"Mvf,omitempty"`
+	// Allowable margin credit of the Username
+	MarginCredit     *float64 `protobuf:"fixed64,9,opt,name=margin_credit,json=MarginCredit" json:"margin_credit,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -10164,9 +10164,9 @@ func (m *CollateralStatus) GetMarginCredit() float64 {
 // 1) placing orders to offset filled leg position(s) at current mkt price(s) and (simultaneously)
 // 2) cancelling the hung quantity.
 type SyntheticLiquidate struct {
-	// Id of an username that is used to place an order.
+	// Id of an Username that is used to place an order.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
-	// Order id assigned by server after last modification.
+	// Order Id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,2,req,name=order_id,json=orderId" json:"order_id,omitempty"`
 	// Id of the hang from the SyntheticHang message.
 	HangId *int32 `protobuf:"zigzag32,3,req,name=hang_id,json=hangId" json:"hang_id,omitempty"`
@@ -10212,9 +10212,9 @@ func (m *SyntheticLiquidate) GetWhenUtcTime() int64 {
 // 1) placing LMT orders to offset filled leg position(s) at their fill price(s) and (simultaneously)
 // 2) cancelling the hung quantity.
 type SyntheticScratch struct {
-	// Id of an username that is used to place an order.
+	// Id of an Username that is used to place an order.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
-	// Order id assigned by server after last modification.
+	// Order Id assigned by server after last modification.
 	OrderId *string `protobuf:"bytes,2,req,name=order_id,json=orderId" json:"order_id,omitempty"`
 	// Id of the hang from the SyntheticHang message.
 	HangId *int32 `protobuf:"zigzag32,3,req,name=hang_id,json=hangId" json:"hang_id,omitempty"`
@@ -10259,9 +10259,9 @@ func (m *SyntheticScratch) GetWhenUtcTime() int64 {
 // Modify an order to get an immediate fill
 // (on either the entire order or previously reported hanging quantity on a synthetic strategy order).
 type GoMarket struct {
-	// Id of an username that is used to place an order.
+	// Id of an Username that is used to place an order.
 	AccountId *int32 `protobuf:"zigzag32,1,req,name=account_id,json=accountId" json:"account_id,omitempty"`
-	// Order id assigned by the server after the last modification.
+	// Order Id assigned by the server after the last modification.
 	OrderId *string `protobuf:"bytes,2,req,name=order_id,json=orderId" json:"order_id,omitempty"`
 	// Id of the hang from the SyntheticHang message, if this request applies to hung quantity on a synthetic strategy order;
 	// Not set, if this request applies to the whole order.
@@ -10318,7 +10318,7 @@ type MarketDataSubscription struct {
 	// False or omitted means that snapshots will contain market values for current trading day only.
 	// True means that snapshots will contain market values for several (up to 3) past trading days.
 	IncludePastMarketValues *bool `protobuf:"varint,3,opt,name=include_past_market_values,json=includePastMarketValues" json:"include_past_market_values,omitempty"`
-	// Optional username cluster ID for username specific data subscriptions.
+	// Optional Username cluster ID for Username specific data subscriptions.
 	AccountClusterId *int64 `protobuf:"zigzag64,4,opt,name=account_cluster_id,json=accountClusterId" json:"account_cluster_id,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -10356,7 +10356,7 @@ func (m *MarketDataSubscription) GetAccountClusterId() int64 {
 	return 0
 }
 
-// Subscription status
+// Subscription Status
 type MarketDataSubscriptionStatus struct {
 	// Subscription contract ID.
 	ContractId *uint32 `protobuf:"varint,1,req,name=contract_id,json=contractId" json:"contract_id,omitempty"`
@@ -10368,7 +10368,7 @@ type MarketDataSubscriptionStatus struct {
 	Level *uint32 `protobuf:"varint,3,req,name=level" json:"level,omitempty"`
 	// Possible details of subscription failure.
 	TextMessage *string `protobuf:"bytes,4,opt,name=text_message,json=textMessage" json:"text_message,omitempty"`
-	// Account cluster ID for username specific data subscriptions.
+	// Account cluster ID for Username specific data subscriptions.
 	AccountClusterId *int64 `protobuf:"zigzag64,5,opt,name=account_cluster_id,json=accountClusterId" json:"account_cluster_id,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -10429,7 +10429,7 @@ type RealTimeMarketData struct {
 	// Market values of a contract (e.g. Open/High/Low/Close) for several past trading days.
 	// Present in snapshots and in updates if some values are changed (only changed values are included in updates).
 	MarketValues []*MarketValues `protobuf:"bytes,5,rep,name=market_values,json=marketValues" json:"market_values,omitempty"`
-	// Account cluster ID for username specific data subscriptions.
+	// Account cluster ID for Username specific data subscriptions.
 	AccountClusterId *int64 `protobuf:"zigzag64,6,opt,name=account_cluster_id,json=accountClusterId" json:"account_cluster_id,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -10801,7 +10801,7 @@ func (m *ModifyUserAttributeResult) GetTextMessage() string {
 
 // Parameters for Time and Sales request.
 type TimeAndSalesParameters struct {
-	// contract id for Time and Sales request.
+	// contract Id for Time and Sales request.
 	ContractId *uint32 `protobuf:"varint,1,req,name=contract_id,json=contractId" json:"contract_id,omitempty"`
 	// This field is associated with Level enum type.
 	Level *uint32 `protobuf:"varint,2,req,name=level" json:"level,omitempty"`
@@ -10963,7 +10963,7 @@ func (m *TimeAndSalesReport) GetTruncated() bool {
 
 // Parameters of a time bar request.
 type TimeBarParameters struct {
-	// Contract id for a bar request.
+	// Contract Id for a bar request.
 	ContractId *uint32 `protobuf:"varint,1,req,name=contract_id,json=contractId" json:"contract_id,omitempty"`
 	// This field is associated with BarUnit enum type.
 	BarUnit *uint32 `protobuf:"varint,2,req,name=bar_unit,json=barUnit" json:"bar_unit,omitempty"`
@@ -11320,7 +11320,7 @@ func (m *VolumeProfileRequest) GetRequestType() uint32 {
 
 // Parameters of a Volume Profile request.
 type VolumeProfileParameters struct {
-	// Contract id for the volume profile request.
+	// Contract Id for the volume profile request.
 	ContractId *uint32 `protobuf:"varint,1,req,name=contract_id,json=contractId" json:"contract_id,omitempty"`
 	// Both of the next two fields have to be set, otherwise the request will return a failure
 	// Start of the time range for volume profile to be calculated for.
@@ -11459,7 +11459,7 @@ type HistoricalOrdersRequest struct {
 	// Only orders till specified business date (inclusively) is to be returned (date only value in time format).
 	// Current business day if the field is omitted.
 	ToDate *int64 `protobuf:"zigzag64,2,opt,name=to_date,json=toDate" json:"to_date,omitempty"`
-	// Filter orders by username. Not specifying any username means all accounts of the user.
+	// Filter orders by Username. Not specifying any Username means all accounts of the user.
 	AccountId        []int32 `protobuf:"zigzag32,3,rep,name=account_id,json=accountId" json:"account_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }

@@ -25,7 +25,7 @@ func CQG_OrderSubscription(id uint32, subscribe bool, username string) {
 func NewOrderRequest(id uint32,username string, accountID int32, contractID uint32, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64, c chan NewOrderCancelUpdateStatus) {
 
 	var noq NewOrderCancelUpdateStatus
-	noq.clorderID = clorderID
+	noq.ClorderID = clorderID
 	noq.channel = c
 	newOrderMap.Store(clorderID,noq)
 
@@ -52,7 +52,8 @@ func NewOrderRequest(id uint32,username string, accountID int32, contractID uint
 
 	if orderType == 2 || orderType ==4 {
 		clientMsg.GetOrderRequest()[0].GetNewOrder().GetOrder().LimitPrice = &price
-	} else if  orderType == 3 || orderType == 4 {
+	}
+	if  orderType == 3 || orderType == 4 {
 		clientMsg.GetOrderRequest()[0].GetNewOrder().GetOrder().StopPrice = &price
 	}
 
@@ -60,7 +61,7 @@ func NewOrderRequest(id uint32,username string, accountID int32, contractID uint
 }
 func CancelOrderRequest(id uint32, orderID string, username string, accountID int32, oldClorID string, clorderID string, utc int64, c chan NewOrderCancelUpdateStatus) {
 	var coq NewOrderCancelUpdateStatus
-	coq.clorderID = clorderID
+	coq.ClorderID = clorderID
 	coq.channel = c
 	cancelOrderMap.Store(clorderID,coq)
 
@@ -86,7 +87,7 @@ func UpdateOrderRequest(id uint32, orderID string,username string, accountID int
 	// Otherwise pass in 0
 	 */
 	var moq NewOrderCancelUpdateStatus
-	moq.clorderID = clorderID
+	moq.ClorderID = clorderID
 	moq.channel = c
 	updateOrderMap.Store(clorderID,moq)
 
@@ -104,26 +105,26 @@ func UpdateOrderRequest(id uint32, orderID string,username string, accountID int
 			},
 		},
 	}
-	if (qty != 0) {
+	if qty != 0 {
 		clientMsg.GetOrderRequest()[0].GetModifyOrder().Qty = &qty
 	}
-	if (limitPrice != 0) {
+	if limitPrice != 0 {
 		clientMsg.GetOrderRequest()[0].GetModifyOrder().LimitPrice = &limitPrice
 	}
-	if (stopPrice != 0) {
+	if stopPrice != 0 {
 		clientMsg.GetOrderRequest()[0].GetModifyOrder().StopPrice = &stopPrice
 	}
-	if (duration != 0) {
-		clientMsg.GetOrderRequest()[0].GetModifyOrder().Qty = &duration
+	if duration != 0 {
+		clientMsg.GetOrderRequest()[0].GetModifyOrder().Duration = &duration
 	}
 	SendMessage(clientMsg,cqgAccountMap.accountMap[username].connWithLock)
 }
 func CQG_InformationRequest(symbol string, id uint32,username string) InformationRequestStatus{
 
 	var ifr InformationRequestStatus
-	ifr.id =id
-	ifr.username = username
-	ifr.status = "ok"
+	ifr.Id =id
+	ifr.Username = username
+	ifr.Status = "ok"
 	ifr.channel = make (chan InformationRequestStatus)
 	informationRequestMap.Store(id,ifr)
 
@@ -142,13 +143,13 @@ func CQG_InformationRequest(symbol string, id uint32,username string) Informatio
 		informationRequestMap.Delete(id)
 		return ifr
 	case <- getTimeOutChan():
-		ifr.status="rejected"
-		ifr.reason ="Unable to obtain symbol from server"
+		ifr.Status ="rejected"
+		ifr.Reason ="Unable to obtain symbol from server"
 		informationRequestMap.Delete(id)
 	}
 	return ifr
 }
-func CQG_SendLogonMessage(username string, accountID int32, password string, clientAppID string, clientVersion string) *ServerMsg {
+func CQG_SendLogonMessage(username string, password string, clientAppID string, clientVersion string) *ServerMsg {
 	LogonMessage := &ClientMsg{
 		Logon: &Logon{UserName: &username,
 			Password:           &password,

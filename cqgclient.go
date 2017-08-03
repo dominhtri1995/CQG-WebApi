@@ -18,6 +18,7 @@ import (
 )
 
 var cqgAccountMap = NewCQGAccountMap()
+var accountMux sync.Mutex
 var userMap = NewUserMap()
 
 var newOrderMap syncmap.Map
@@ -27,45 +28,42 @@ var informationRequestMap syncmap.Map
 
 var addr = flag.String("addr", "demoapi.cqg.com:443", "http service address")
 
-func CQG_StartWebApi(username string, password string, accountID int32) int {
+func CQG_StartWebApi(username string, password string, accountIdList []int32) int {
+	accountMux.Lock()
+	defer accountMux.Unlock()
 
 	cqgAccount := NewCQGAccount()
-	if _, ok := cqgAccountMap.accountMap[username]; !ok {
-		err := startNewConnection(cqgAccount, username)
+	cqgAccount.username = username
+	cqgAccount.password = password
+	err := startNewConnection(cqgAccount, username)
 
-		if err == nil {
-			return -1
+	if err == nil {
+		return -1
+	}
+	cqgAccountMap.addAccount(cqgAccount)
+	msg := CQG_SendLogonMessage(username, password, "WebApiTest", "java-client")
+	if msg.LogonResult.GetResultCode() == 0 {
+		fmt.Printf("%s Logon Successfully!!! Let's make America great again \n", username)
+		for _, accID := range accountIdList {
+			var user User
+			user.username = username
+			user.accountID = accID
+			cqgAccount.addUser(&user)
+			userMap.addUser(&user)
 		}
 
-		cqgAccount.username = username
-		cqgAccount.password = password
-		cqgAccountMap.addAccount(cqgAccount)
-		msg := CQG_SendLogonMessage(username, accountID, password, "WebApiTest", "java-client")
-		if msg.LogonResult.GetResultCode() == 0 {
-			fmt.Printf("%s Logon Successfully!!! Let's make America great again \n", username)
-		} else {
-			fmt.Printf("%s Logon failed !! It's Obama's fault \n", username)
-			cqgAccountMap.removeAccount(username)
-			//Close the socket
-			err := cqgAccount.connWithLock.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			if err != nil {
-				log.Println("Send CloseMessage err :", err)
-			}
-			cqgAccount.connWithLock.conn.Close()
-			return -1
-		}
+		CQG_OrderSubscription(hash(xid.New().String()), true, username)
 
 	} else {
-		cqgAccount = cqgAccountMap.accountMap[username]
-	}
-
-	if _, ok := cqgAccount.userMap[accountID]; !ok {
-		var user User
-		user.username = username
-		user.accountID = accountID
-		cqgAccount.addUser(&user)
-		userMap.addUser(&user)
-		CQG_OrderSubscription(hash(xid.New().String()), true, username)
+		fmt.Printf("%s Logon failed !! It's Obama's fault \n", username)
+		cqgAccountMap.removeAccount(username)
+		//Close the socket
+		err := cqgAccount.connWithLock.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		if err != nil {
+			log.Println("Send CloseMessage err :", err)
+		}
+		cqgAccount.connWithLock.conn.Close()
+		return -1
 	}
 
 	return 0
@@ -88,30 +86,31 @@ func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
 
 	return cqgAccount
 }
-func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
+func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID string, orderType uint32, price float64, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 
 	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
-		ordStatus.status = "rejected"
-		ordStatus.reason = "Connection not established. Please sign in"
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "Connection not established. Please sign in"
 		return
 	}
 
 	ifr := CQG_InformationRequest(symbol, 1, "VTechapi")
 
-	if ifr.status == "ok" {
+	if ifr.Status == "ok" {
 		var c = make(chan NewOrderCancelUpdateStatus)
 		user, _ := userMap.getUser(accountID)
-		NewOrderRequest(id, user.username, accountID, ifr.contractID, clorderID, orderType, price, duration, side, qty, is_manual, utc, c)
+		metada,_ := cqgAccountMap.accountMap[user.username].metadataMap[ifr.ContractID]
+		NewOrderRequest(id, user.username, accountID, ifr.ContractID, clorderID, orderType, int32(price/metada.GetCorrectPriceScale()), duration, side, qty, is_manual, utc, c)
 		select {
 		case ordStatus = <-c:
 			return ordStatus
 		case <-getTimeOutChan():
-			ordStatus.status = "rejected"
-			ordStatus.reason = "time out"
+			ordStatus.Status = "rejected"
+			ordStatus.Reason = "time out"
 		}
 	} else {
-		ordStatus.status = "rejected"
-		ordStatus.reason = ifr.reason
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = ifr.Reason
 	}
 
 	return ordStatus
@@ -119,20 +118,20 @@ func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID st
 func CQG_GetPosition(accountID int32) *UserInfoRequest {
 	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
 		var uir UserInfoRequest
-		uir.status = "rejected"
-		uir.reason = "Connection not established. Please sign in"
+		uir.Status = "rejected"
+		uir.Reason = "Connection not established. Please sign in"
 		return &uir
 	}
 
 	if user, ok := userMap.getUser(accountID); ok {
 		var uir UserInfoRequest
-		uir.status = "ok"
-		uir.username = user.username
-		uir.accountID = user.accountID
+		uir.Status = "ok"
+		uir.Username = user.username
+		uir.AccountID = user.accountID
 		user.positionMap.Range(func(key, value interface{}) bool {
 			position, _ := value.(*Position)
-			uir.positionList = append(uir.positionList, *position)
-			uir.collateralInfo = user.collateralInfo
+			uir.PositionList = append(uir.PositionList, *position)
+			uir.CollateralInfo = user.collateralInfo
 			return true
 		})
 		return &uir
@@ -142,20 +141,20 @@ func CQG_GetPosition(accountID int32) *UserInfoRequest {
 func CQG_GetWorkingOrder(accountID int32) *UserInfoRequest {
 	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
 		var uir UserInfoRequest
-		uir.status = "rejected"
-		uir.reason = "Connection not established. Please sign in"
+		uir.Status = "rejected"
+		uir.Reason = "Connection not established. Please sign in"
 		return &uir
 	}
 
 	if user, ok := userMap.getUser(accountID); ok {
 		var uir UserInfoRequest
-		uir.status = "ok"
-		uir.username = user.username
-		uir.accountID = user.accountID
+		uir.Status = "ok"
+		uir.Username = user.username
+		uir.AccountID = user.accountID
 		user.workingOrderMap.Range(func(key, value interface{}) bool {
 			wo, _ := value.(*WorkingOrder)
-			uir.workingOrderList = append(uir.workingOrderList, *wo)
-			uir.collateralInfo = user.collateralInfo
+			uir.WorkingOrderList = append(uir.WorkingOrderList, *wo)
+			uir.CollateralInfo = user.collateralInfo
 			return true
 		})
 		return &uir
@@ -165,15 +164,15 @@ func CQG_GetWorkingOrder(accountID int32) *UserInfoRequest {
 func CQG_GetCollateralInfo(accountID int32) *UserInfoRequest {
 	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
 		var uir UserInfoRequest
-		uir.status = "rejected"
-		uir.reason = "Connection not established. Please sign in"
+		uir.Status = "rejected"
+		uir.Reason = "Connection not established. Please sign in"
 		return &uir
 	}
 
 	if user, ok := userMap.getUser(accountID); ok {
 		var uir UserInfoRequest
-		uir.status = "ok"
-		uir.collateralInfo = user.collateralInfo
+		uir.Status = "ok"
+		uir.CollateralInfo = user.collateralInfo
 
 		return &uir
 	}
@@ -182,8 +181,8 @@ func CQG_GetCollateralInfo(accountID int32) *UserInfoRequest {
 func CQG_CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorID string, clorID string, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 
 	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
-		ordStatus.status = "rejected"
-		ordStatus.reason = "Connection not established. Please sign in"
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "Connection not established. Please sign in"
 		return
 	}
 
@@ -194,8 +193,8 @@ func CQG_CancelOrderRequest(id uint32, orderID string, accountID int32, oldClorI
 	case ordStatus = <-c:
 		return ordStatus
 	case <-getTimeOutChan():
-		ordStatus.status = "rejected"
-		ordStatus.reason = "time out"
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "time out"
 	}
 	return ordStatus
 }
@@ -203,8 +202,8 @@ func CQG_UpdateOrderRequest(id uint32, orderID string, accountID int32, oldClorI
 	qty uint32, limitPrice int32, stopPrice int32, duration uint32, ) (ordStatus NewOrderCancelUpdateStatus) {
 
 	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
-		ordStatus.status = "rejected"
-		ordStatus.reason = "Connection not established. Please sign in"
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "Connection not established. Please sign in"
 		return
 	}
 
@@ -215,8 +214,8 @@ func CQG_UpdateOrderRequest(id uint32, orderID string, accountID int32, oldClorI
 	case ordStatus = <-c:
 		return ordStatus
 	case <-getTimeOutChan():
-		ordStatus.status = "rejected"
-		ordStatus.reason = "time out"
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "time out"
 	}
 	return ordStatus
 }
@@ -282,22 +281,22 @@ Loop:
 							switch InformationReport_StatusCode_name[int32(inforeport.GetStatusCode())] {
 							case InformationReport_FAILURE.String():
 								fmt.Println("Error Information Request")
-								ifr.status = "rejected"
-								ifr.reason = inforeport.GetTextMessage()
+								ifr.Status = "rejected"
+								ifr.Reason = inforeport.GetTextMessage()
 								ifr.channel <- ifr
 							case InformationReport_NOT_FOUND.String():
-								ifr.status = "rejected"
-								ifr.reason = inforeport.GetTextMessage()
+								ifr.Status = "rejected"
+								ifr.Reason = inforeport.GetTextMessage()
 								ifr.channel <- ifr
 							case InformationReport_REQUEST_LIMIT_VIOLATION.String():
-								ifr.status = "rejected"
-								ifr.reason = "exceed request limit for the day"
+								ifr.Status = "rejected"
+								ifr.Reason = "exceed request limit for the day"
 								ifr.channel <- ifr
 							default:
 								metadata := inforeport.GetSymbolResolutionReport().GetContractMetadata()
 								metadataMap[metadata.GetContractId()] = metadata
-								ifr.status = "ok"
-								ifr.contractID = metadata.GetContractId()
+								ifr.Status = "ok"
+								ifr.ContractID = metadata.GetContractId()
 								ifr.channel <- ifr
 							}
 						} else {
@@ -416,8 +415,8 @@ Loop:
 								//noq := newOrderList[j]
 								if noq, ok := newOrderMap.Load(clorIDTransaction); ok {
 									noq, _ := noq.(NewOrderCancelUpdateStatus)
-									noq.status = "rejected"
-									noq.reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
+									noq.Status = "rejected"
+									noq.Reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
 									noq.channel <- noq
 									newOrderMap.Delete(clorIDTransaction)
 									break
@@ -426,7 +425,7 @@ Loop:
 								clorIDOrder := orderStatus.GetOrder().GetClOrderId()
 								if noq, ok := newOrderMap.Load(clorIDOrder); ok {
 									noq, _ := noq.(NewOrderCancelUpdateStatus)
-									noq.status = "ok"
+									noq.Status = "ok"
 									noq.channel <- noq
 									newOrderMap.Delete(clorIDOrder)
 								}
@@ -484,7 +483,7 @@ Loop:
 							case TransactionStatus_ACK_CANCEL.String():
 								if coq, ok := cancelOrderMap.Load(clorIDTransaction); ok {
 									coq, _ := coq.(NewOrderCancelUpdateStatus)
-									coq.status = "ok"
+									coq.Status = "ok"
 									coq.channel <- coq
 									cancelOrderMap.Delete(clorIDTransaction)
 
@@ -501,8 +500,8 @@ Loop:
 							case TransactionStatus_REJECT_CANCEL.String():
 								if coq, ok := cancelOrderMap.Load(clorIDTransaction); ok {
 									coq, _ := coq.(NewOrderCancelUpdateStatus)
-									coq.status = "rejected"
-									coq.reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
+									coq.Status = "rejected"
+									coq.Reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
 									coq.channel <- coq
 									cancelOrderMap.Delete(clorIDTransaction)
 
@@ -511,7 +510,7 @@ Loop:
 								clorIDOrder := orderStatus.GetOrder().GetClOrderId()
 								if moq, ok := updateOrderMap.Load(clorIDOrder); ok {
 									moq, _ := moq.(NewOrderCancelUpdateStatus)
-									moq.status = "ok"
+									moq.Status = "ok"
 									moq.channel <- moq
 									updateOrderMap.Delete(clorIDOrder)
 								}
@@ -538,8 +537,8 @@ Loop:
 							case TransactionStatus_REJECT_MODIFY.String():
 								if moq, ok := updateOrderMap.Load(clorIDTransaction); ok {
 									moq, _ := moq.(NewOrderCancelUpdateStatus)
-									moq.status = "rejected"
-									moq.reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
+									moq.Status = "rejected"
+									moq.Reason = orderStatus.GetTransactionStatus()[0].GetTextMessage()
 									moq.channel <- moq
 									updateOrderMap.Delete(clorIDTransaction)
 								}
@@ -547,7 +546,7 @@ Loop:
 								clorIDOrder := orderStatus.GetOrder().GetClOrderId()
 								if noq, ok := newOrderMap.Load(clorIDOrder); ok {
 									noq, _ := noq.(NewOrderCancelUpdateStatus)
-									noq.status = "ok"
+									noq.Status = "ok"
 									noq.channel <- noq
 									newOrderMap.Delete(clorIDOrder)
 								}
@@ -587,7 +586,7 @@ Loop:
 							}
 						} else { //Trade subscription snapshot
 							if orderStatus.GetStatus() == 3 || orderStatus.GetStatus() == 11 {
-								//fmt.Println("in order status snapshot")
+								//fmt.Println("in order Status snapshot")
 								//account := orderStatus.GetEnteredByUser()
 								accountID := orderStatus.GetOrder().GetAccountId()
 
@@ -626,13 +625,13 @@ Loop:
 					for _, col := range msg.GetCollateralStatus() {
 						accountID := col.GetAccountId()
 						if user, ok := userMap.getUser(accountID); ok {
-							user.collateralInfo.currency = col.GetCurrency()
-							user.collateralInfo.marginCredit = col.GetMarginCredit()
-							user.collateralInfo.mvf = col.GetMvf()
-							user.collateralInfo.mvo = col.GetMvo()
-							user.collateralInfo.upl = col.GetOte()
-							user.collateralInfo.purchasingPower = col.GetPurchasingPower()
-							user.collateralInfo.totalMargin = col.GetTotalMargin()
+							user.collateralInfo.Currency = col.GetCurrency()
+							user.collateralInfo.MarginCredit = col.GetMarginCredit()
+							user.collateralInfo.Mvf = col.GetMvf()
+							user.collateralInfo.Mvo = col.GetMvo()
+							user.collateralInfo.Upl = col.GetOte()
+							user.collateralInfo.PurchasingPower = col.GetPurchasingPower()
+							user.collateralInfo.TotalMargin = col.GetTotalMargin()
 						}
 					}
 
@@ -684,21 +683,17 @@ func RecvMessageOne(connWithLock ConnWithLock) (msg *ServerMsg) {
 
 func recoverFromDisconnection(connWithLock ConnWithLock, username string) {
 	account := cqgAccountMap.accountMap[username]
+	accID := []int32{}
+	for _, a := range account.userMap {
+		accID = append(accID, a.accountID)
+	}
 	cqgAccountMap.removeAccount(username)
-	var err bool
 
 	for {
-		for key, _ := range account.userMap {
-			fmt.Printf("Reconnecting with %s pass: %s  account: %d\n", account.username, account.password, key)
-			result := CQG_StartWebApi(account.username, account.password, key)
-			if result == -1 {
-				err = true
-			} else {
-				delete(account.userMap, key)
-			}
-		}
-		if err {
-			err = false
+		fmt.Printf("Reconnecting with %s pass: %s \n", account.username, account.password)
+		result := CQG_StartWebApi(account.username, account.password, accID)
+
+		if result == -1 {
 			time.Sleep(20 * time.Second)
 		} else {
 			break
@@ -825,7 +820,7 @@ type ConnWithLock struct {
 }
 
 type WorkingOrder struct {
-	orderID      string // Used to cancel order or request order status later
+	orderID      string // Used to cancel order or request order Status later
 	clorID       string
 	chainOrderID string
 	ordStatus    string
@@ -868,36 +863,36 @@ func (position *Position) updatePriceAndQty() {
 }
 
 type CollateralInfo struct {
-	currency        string
-	totalMargin     float64
-	purchasingPower float64
-	upl             float64
-	mvo             float64
-	marginCredit    float64
-	mvf             float64
+	Currency        string
+	TotalMargin     float64
+	PurchasingPower float64
+	Upl             float64
+	Mvo             float64
+	MarginCredit    float64
+	Mvf             float64
 }
 type NewOrderCancelUpdateStatus struct {
-	clorderID string
-	status    string
-	reason    string
+	ClorderID string
+	Status    string
+	Reason    string
 	channel   chan NewOrderCancelUpdateStatus
 }
 
 type InformationRequestStatus struct {
-	id         uint32
-	username   string
-	contractID uint32
-	status     string
-	reason     string
+	Id         uint32
+	Username   string
+	ContractID uint32
+	Status     string
+	Reason     string
 	channel    chan InformationRequestStatus
 }
 
 type UserInfoRequest struct {
-	username         string
-	accountID        int32
-	workingOrderList []WorkingOrder
-	positionList     []Position
-	collateralInfo   CollateralInfo
-	status           string
-	reason           string
+	Username         string
+	AccountID        int32
+	WorkingOrderList []WorkingOrder
+	PositionList     []Position
+	CollateralInfo   CollateralInfo
+	Status           string
+	Reason           string
 }
