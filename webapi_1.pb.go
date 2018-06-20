@@ -155,7 +155,7 @@ It has these top-level messages:
 	HistoricalOrdersRequest
 	HistoricalOrdersReport
 */
-package main
+package cqgwebapi
 
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
