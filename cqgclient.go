@@ -86,7 +86,7 @@ func startNewConnection(cqgAccount *CQGAccount, username string) *CQGAccount {
 
 	return cqgAccount
 }
-func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID string, orderType uint32, price float64, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
+func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID string, orderType uint32, limitPrice float64, stopPrice float64, duration uint32, side uint32, qty uint32, is_manual bool, utc int64) (ordStatus NewOrderCancelUpdateStatus) {
 
 	if checkUserLogonStatus(accountID) == -1 { // If user havent logon and no connection established
 		ordStatus.Status = "rejected"
@@ -94,15 +94,23 @@ func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID st
 		return
 	}
 
-	ifr := CQG_InformationRequest(symbol, 1, "VTechapi")
+	ifr := CQG_InformationRequest(symbol, 1, "VTechapi",true)
 
 	if ifr.Status == "ok" {
 		var c = make(chan NewOrderCancelUpdateStatus)
 		user, _ := userMap.getUser(accountID)
-		metada,_ := cqgAccountMap.accountMap[user.username].metadataMap[ifr.ContractID]
-		NewOrderRequest(id, user.username, accountID, ifr.ContractID, clorderID, orderType, int32(price/metada.GetCorrectPriceScale()), duration, side, qty, is_manual, utc, c)
+		metada, _ := cqgAccountMap.accountMap[user.username].metadataMap[ifr.ContractID]
+		NewOrderRequest(id, user.username, accountID, ifr.ContractID, clorderID, orderType, int32(limitPrice/metada.GetCorrectPriceScale()),int32(stopPrice/metada.GetCorrectPriceScale()), duration, side, qty, is_manual, utc, c)
 		select {
 		case ordStatus = <-c:
+			ordStatus.Symbol = metada.GetTitle()
+			ordStatus.Price = limitPrice
+			ordStatus.StopPrice = stopPrice
+			if side == 1{
+				ordStatus.Side = "BUY"
+			} else {
+				ordStatus.Side = "SELL"
+			}
 			return ordStatus
 		case <-getTimeOutChan():
 			ordStatus.Status = "rejected"
@@ -229,7 +237,7 @@ func SendMessage(message *ClientMsg, connWithLock ConnWithLock) {
 		log.Println("CQG error:", err)
 		return
 	} else {
-		//fmt.Printf("send: %s\n", *message)
+		// fmt.Printf("send: %s\n", *message)
 		log.Printf("send: %s\n", *message)
 	}
 	connWithLock.rwmux.Unlock()
@@ -312,34 +320,34 @@ Loop:
 							if len(position.GetOpenPosition()) > 0 {
 								var userPosition Position
 								userPosition.subPositionMap = make(map[int32]*OpenPosition)
-								userPosition.contractID = position.GetContractId()
+								userPosition.ContractID = position.GetContractId()
 
-								if metadata, ok := metadataMap[userPosition.contractID]; ok {
-									userPosition.symbol = metadata.GetTitle()
-									userPosition.productDescription = metadata.GetDescription()
-									userPosition.priceScale = metadata.GetCorrectPriceScale()
-									userPosition.tickValue = metadata.GetTickValue()
+								if metadata, ok := metadataMap[userPosition.ContractID]; ok {
+									userPosition.Symbol = metadata.GetTitle()
+									userPosition.ProductDescription = metadata.GetDescription()
+									userPosition.PriceScale = metadata.GetCorrectPriceScale()
+									userPosition.TickValue = metadata.GetTickValue()
 								}
 
 								short := position.GetIsShortOpenPosition()
 								if short == true {
-									userPosition.side = "SELL"
+									userPosition.Side = "SELL"
 								} else {
-									userPosition.side = "BUY"
+									userPosition.Side = "BUY"
 								}
 
 								for _, openPosition := range position.GetOpenPosition() {
-									userPosition.quantity += openPosition.GetQty()
-									userPosition.price += openPosition.GetPrice() * float64(openPosition.GetQty())
+									userPosition.Quantity += openPosition.GetQty()
+									userPosition.Price += openPosition.GetPrice() * float64(openPosition.GetQty())
 									userPosition.subPositionMap[openPosition.GetId()] = openPosition
 								}
-								//averaging out the price
-								userPosition.price /= float64(userPosition.quantity)
+								//averaging out the Price
+								userPosition.Price /= float64(userPosition.Quantity)
 
 								//add to Position list of user
 								if user, ok := userMap.getUser(accountID); ok {
-									fmt.Println("add 1 position ", userPosition.symbol, userPosition.contractID)
-									user.positionMap.Store(userPosition.contractID, &userPosition)
+									fmt.Println("add 1 position ", userPosition.Symbol, userPosition.ContractID)
+									user.positionMap.Store(userPosition.ContractID, &userPosition)
 								}
 
 							} else {
@@ -350,27 +358,27 @@ Loop:
 							if len(position.GetOpenPosition()) > 0 {
 								var userPosition Position
 								userPosition.subPositionMap = make(map[int32]*OpenPosition)
-								userPosition.contractID = position.GetContractId()
+								userPosition.ContractID = position.GetContractId()
 
-								if metadata, ok := metadataMap[userPosition.contractID]; ok {
-									userPosition.symbol = metadata.GetTitle()
-									userPosition.productDescription = metadata.GetDescription()
-									userPosition.priceScale = metadata.GetCorrectPriceScale()
-									userPosition.tickValue = metadata.GetTickValue()
+								if metadata, ok := metadataMap[userPosition.ContractID]; ok {
+									userPosition.Symbol = metadata.GetTitle()
+									userPosition.ProductDescription = metadata.GetDescription()
+									userPosition.PriceScale = metadata.GetCorrectPriceScale()
+									userPosition.TickValue = metadata.GetTickValue()
 								}
 
 								short := position.GetIsShortOpenPosition()
 								if short == true {
-									userPosition.side = "SELL"
-									userPosition.shortBool = true
+									userPosition.Side = "SELL"
+									userPosition.ShortBool = true
 								} else {
-									userPosition.side = "BUY"
-									userPosition.shortBool = false
+									userPosition.Side = "BUY"
+									userPosition.ShortBool = false
 								}
 
 								//add to Position list of user
 								if user, ok := userMap.getUser(accountID); ok {
-									if p, ok := user.positionMap.Load(userPosition.contractID); ok { //Contract already exist
+									if p, ok := user.positionMap.Load(userPosition.ContractID); ok { //Contract already exist
 										p, _ := p.(*Position)
 										for _, openPosition := range position.GetOpenPosition() { //Update open_position/subposition
 											if oldOpenPosition, ok := p.subPositionMap[openPosition.GetId()]; ok {
@@ -382,20 +390,20 @@ Loop:
 											}
 										}
 										p.updatePriceAndQty()
-										p.side = userPosition.side
-										if p.quantity == 0 { //remove position if qty =0 square position
-											user.positionMap.Delete(p.contractID)
+										p.Side = userPosition.Side
+										if p.Quantity == 0 { //remove position if qty =0 square position
+											user.positionMap.Delete(p.ContractID)
 										}
 
 									} else { //New Position
 										for _, openPosition := range position.GetOpenPosition() {
-											userPosition.quantity += openPosition.GetQty()
-											userPosition.price += openPosition.GetPrice() * float64(openPosition.GetQty())
+											userPosition.Quantity += openPosition.GetQty()
+											userPosition.Price += openPosition.GetPrice() * float64(openPosition.GetQty())
 											userPosition.subPositionMap[openPosition.GetId()] = openPosition
 										}
-										//averaging out the price
-										userPosition.price /= float64(userPosition.quantity)
-										user.positionMap.Store(userPosition.contractID, &userPosition)
+										//averaging out the Price
+										userPosition.Price /= float64(userPosition.Quantity)
+										user.positionMap.Store(userPosition.ContractID, &userPosition)
 									}
 
 								}
@@ -426,6 +434,7 @@ Loop:
 								if noq, ok := newOrderMap.Load(clorIDOrder); ok {
 									noq, _ := noq.(NewOrderCancelUpdateStatus)
 									noq.Status = "ok"
+									noq.OrderID = orderStatus.GetOrderId()
 									noq.channel <- noq
 									newOrderMap.Delete(clorIDOrder)
 								}
@@ -433,34 +442,37 @@ Loop:
 								accountID := orderStatus.GetOrder().GetAccountId()
 
 								var wo WorkingOrder
-								wo.orderID = orderStatus.GetOrderId()
-								wo.chainOrderID = orderStatus.GetChainOrderId()
-								wo.clorID = orderStatus.GetOrder().GetClOrderId()
-								wo.contractID = orderStatus.GetOrder().GetContractId()
-								wo.quantity = orderStatus.GetRemainingQty()
-								wo.ordType = orderStatus.GetOrder().GetOrderType()
-								wo.timeInForce = orderStatus.GetOrder().GetDuration()
-								wo.text = "WORKING"
+								wo.OrderID = orderStatus.GetOrderId()
+								wo.ChainOrderID = orderStatus.GetChainOrderId()
+								wo.ClorID = orderStatus.GetOrder().GetClOrderId()
+								wo.ContractID = orderStatus.GetOrder().GetContractId()
+								wo.Quantity = orderStatus.GetRemainingQty()
+								wo.OrdType = orderStatus.GetOrder().GetOrderType()
+								wo.TimeInForce = orderStatus.GetOrder().GetDuration()
+								wo.Text = "WORKING"
 
 								var price int32
-								if (wo.ordType == 2 || wo.ordType == 4 ) {
+								var stopPrice int32
+								if wo.OrdType == 2 || wo.OrdType == 4 {
 									price = orderStatus.GetOrder().GetLimitPrice()
-								} else if (wo.ordType == 3 || wo.ordType == 4 ) {
-									price = orderStatus.GetOrder().GetStopPrice()
 								}
-								wo.sideNum = orderStatus.GetOrder().GetSide()
-								wo.side = Order_Side_name[int32(wo.sideNum)]
+								if wo.OrdType == 3 || wo.OrdType == 4 {
+									stopPrice = orderStatus.GetOrder().GetStopPrice()
+								}
+								wo.SideNum = orderStatus.GetOrder().GetSide()
+								wo.Side = Order_Side_name[int32(wo.SideNum)]
 
-								if metadata, ok := metadataMap[wo.contractID]; ok {
-									wo.symbol = metadata.GetTitle()
-									wo.productDescription = metadata.GetDescription()
-									wo.priceScale = metadata.GetCorrectPriceScale()
-									wo.price = float64(price) * metadata.GetCorrectPriceScale()
+								if metadata, ok := metadataMap[wo.ContractID]; ok {
+									wo.Symbol = metadata.GetTitle()
+									wo.ProductDescription = metadata.GetDescription()
+									wo.PriceScale = metadata.GetCorrectPriceScale()
+									wo.Price = float64(price) * metadata.GetCorrectPriceScale()
+									wo.StopPrice = float64(stopPrice) * metadata.GetCorrectPriceScale()
 								}
 
 								if user, ok := userMap.getUser(accountID); ok {
 									//fmt.Println("append new order to working")
-									user.workingOrderMap.Store(wo.chainOrderID, &wo)
+									user.workingOrderMap.Store(wo.ChainOrderID, &wo)
 								}
 
 							case TransactionStatus_FILL.String():
@@ -469,9 +481,9 @@ Loop:
 								if user, ok := userMap.getUser(accountID); ok {
 									if wo, ok := user.workingOrderMap.Load(chainOrderID); ok {
 										wo, _ := wo.(*WorkingOrder)
-										wo.quantity = orderStatus.GetRemainingQty()
-										//fmt.Printf("%d left \n",wo.quantity)
-										if wo.quantity == 0 {
+										wo.Quantity = orderStatus.GetRemainingQty()
+										//fmt.Printf("%d left \n",wo.Quantity)
+										if wo.Quantity == 0 {
 											user.workingOrderMap.Delete(chainOrderID)
 										}
 									}
@@ -521,16 +533,17 @@ Loop:
 								if user, ok := userMap.getUser(accountID); ok {
 									if wo, ok := user.workingOrderMap.Load(chainOrderID); ok {
 										wo, _ := wo.(*WorkingOrder)
-										wo.orderID = orderStatus.GetOrderId()
-										wo.clorID = orderStatus.GetOrder().GetClOrderId()
-										wo.quantity = orderStatus.GetRemainingQty()
-										wo.timeInForce = orderStatus.GetOrder().GetDuration()
+										wo.OrderID = orderStatus.GetOrderId()
+										wo.ClorID = orderStatus.GetOrder().GetClOrderId()
+										wo.Quantity = orderStatus.GetRemainingQty()
+										wo.TimeInForce = orderStatus.GetOrder().GetDuration()
 										ordType := orderStatus.GetOrder().GetOrderType()
 
-										if (ordType == 2 || wo.ordType == 4) {
-											wo.price = float64(orderStatus.GetOrder().GetLimitPrice()) * wo.priceScale
-										} else if (wo.ordType == 3 || wo.ordType == 4 ) {
-											wo.price = float64(orderStatus.GetOrder().GetStopPrice()) * wo.priceScale
+										if ordType == 2 || wo.OrdType == 4 {
+											wo.Price = float64(orderStatus.GetOrder().GetLimitPrice()) * wo.PriceScale
+										}
+										if wo.OrdType == 3 || wo.OrdType == 4 {
+											wo.StopPrice = float64(orderStatus.GetOrder().GetStopPrice()) * wo.PriceScale
 										}
 									}
 								}
@@ -554,34 +567,37 @@ Loop:
 								accountID := orderStatus.GetOrder().GetAccountId()
 
 								var wo WorkingOrder
-								wo.orderID = orderStatus.GetOrderId()
-								wo.chainOrderID = orderStatus.GetChainOrderId()
-								wo.clorID = orderStatus.GetOrder().GetClOrderId()
-								wo.contractID = orderStatus.GetOrder().GetContractId()
-								wo.quantity = orderStatus.GetRemainingQty()
-								wo.ordType = orderStatus.GetOrder().GetOrderType()
-								wo.timeInForce = orderStatus.GetOrder().GetDuration()
-								wo.text = "ACTIVEAT"
+								wo.OrderID = orderStatus.GetOrderId()
+								wo.ChainOrderID = orderStatus.GetChainOrderId()
+								wo.ClorID = orderStatus.GetOrder().GetClOrderId()
+								wo.ContractID = orderStatus.GetOrder().GetContractId()
+								wo.Quantity = orderStatus.GetRemainingQty()
+								wo.OrdType = orderStatus.GetOrder().GetOrderType()
+								wo.TimeInForce = orderStatus.GetOrder().GetDuration()
+								wo.Text = "ACTIVEAT"
 
 								var price int32
-								if (wo.ordType == 2 || wo.ordType == 4 ) {
+								var stopPrice int32
+								if wo.OrdType == 2 || wo.OrdType == 4 {
 									price = orderStatus.GetOrder().GetLimitPrice()
-								} else if (wo.ordType == 3 || wo.ordType == 4 ) {
-									price = orderStatus.GetOrder().GetStopPrice()
 								}
-								wo.sideNum = orderStatus.GetOrder().GetSide()
-								wo.side = Order_Side_name[int32(wo.sideNum)]
+								if wo.OrdType == 3 || wo.OrdType == 4 {
+									stopPrice = orderStatus.GetOrder().GetStopPrice()
+								}
+								wo.SideNum = orderStatus.GetOrder().GetSide()
+								wo.Side = Order_Side_name[int32(wo.SideNum)]
 
-								if metadata, ok := metadataMap[wo.contractID]; ok {
-									wo.symbol = metadata.GetTitle()
-									wo.productDescription = metadata.GetDescription()
-									wo.priceScale = metadata.GetCorrectPriceScale()
-									wo.price = float64(price) * metadata.GetCorrectPriceScale()
+								if metadata, ok := metadataMap[wo.ContractID]; ok {
+									wo.Symbol = metadata.GetTitle()
+									wo.ProductDescription = metadata.GetDescription()
+									wo.PriceScale = metadata.GetCorrectPriceScale()
+									wo.Price = float64(price) * metadata.GetCorrectPriceScale()
+									wo.StopPrice = float64(stopPrice) * metadata.GetCorrectPriceScale()
 								}
 
 								if user, ok := userMap.getUser(accountID); ok {
 									//fmt.Println("append new order to working")
-									user.workingOrderMap.Store(wo.chainOrderID, &wo)
+									user.workingOrderMap.Store(wo.ChainOrderID, &wo)
 								}
 							}
 						} else { //Trade subscription snapshot
@@ -591,32 +607,35 @@ Loop:
 								accountID := orderStatus.GetOrder().GetAccountId()
 
 								var wo WorkingOrder
-								wo.orderID = orderStatus.GetOrderId()
-								wo.chainOrderID = orderStatus.GetChainOrderId()
-								wo.clorID = orderStatus.GetOrder().GetClOrderId()
-								wo.contractID = orderStatus.GetOrder().GetContractId()
-								wo.quantity = orderStatus.GetRemainingQty()
-								wo.ordType = orderStatus.GetOrder().GetOrderType()
-								wo.timeInForce = orderStatus.GetOrder().GetDuration()
+								wo.OrderID = orderStatus.GetOrderId()
+								wo.ChainOrderID = orderStatus.GetChainOrderId()
+								wo.ClorID = orderStatus.GetOrder().GetClOrderId()
+								wo.ContractID = orderStatus.GetOrder().GetContractId()
+								wo.Quantity = orderStatus.GetRemainingQty()
+								wo.OrdType = orderStatus.GetOrder().GetOrderType()
+								wo.TimeInForce = orderStatus.GetOrder().GetDuration()
 
 								var price int32
-								if (wo.ordType == 2) {
+								var stopPrice int32
+								if wo.OrdType == 2 || wo.OrdType == 4{
 									price = orderStatus.GetOrder().GetLimitPrice()
-								} else if (wo.ordType == 3 || wo.ordType == 4 ) {
-									price = orderStatus.GetOrder().GetStopPrice()
 								}
-								wo.sideNum = orderStatus.GetOrder().GetSide()
-								wo.side = Order_Side_name[int32(wo.sideNum)]
+								if wo.OrdType == 3 || wo.OrdType == 4 {
+									stopPrice = orderStatus.GetOrder().GetStopPrice()
+								}
+								wo.SideNum = orderStatus.GetOrder().GetSide()
+								wo.Side = Order_Side_name[int32(wo.SideNum)]
 
-								if metadata, ok := metadataMap[wo.contractID]; ok {
-									wo.symbol = metadata.GetTitle()
-									wo.productDescription = metadata.GetDescription()
-									wo.priceScale = metadata.GetCorrectPriceScale()
-									wo.price = float64(price) * wo.priceScale
+								if metadata, ok := metadataMap[wo.ContractID]; ok {
+									wo.Symbol = metadata.GetTitle()
+									wo.ProductDescription = metadata.GetDescription()
+									wo.PriceScale = metadata.GetCorrectPriceScale()
+									wo.Price = float64(price) * wo.PriceScale
+									wo.StopPrice =float64(stopPrice) * wo.PriceScale
 								}
 
 								if user, ok := userMap.getUser(accountID); ok {
-									user.workingOrderMap.Store(wo.chainOrderID, &wo)
+									user.workingOrderMap.Store(wo.ChainOrderID, &wo)
 								}
 							}
 						}
@@ -675,7 +694,7 @@ func RecvMessageOne(connWithLock ConnWithLock) (msg *ServerMsg) {
 	}
 	msg = &ServerMsg{}
 	proto.Unmarshal(message, msg)
-	//fmt.Printf("recv: %s \n", msg)
+	// fmt.Printf("recv: %s \n", msg)
 	log.Printf("recv: %s \n", msg)
 	connWithLock.rwmux.RUnlock()
 	return msg
@@ -820,45 +839,46 @@ type ConnWithLock struct {
 }
 
 type WorkingOrder struct {
-	orderID      string // Used to cancel order or request order Status later
-	clorID       string
-	chainOrderID string
-	ordStatus    string
-	quantity     uint32
-	side         string
-	sideNum      uint32
-	ordType      uint32
-	timeInForce  uint32
-	price        float64
-	contractID   uint32
-	text         string
+	OrderID      string // Used to cancel order or request order Status later
+	ClorID       string
+	ChainOrderID string
+	OrdStatus    string
+	Quantity     uint32
+	Side         string
+	SideNum      uint32
+	OrdType      uint32
+	TimeInForce  uint32
+	Price        float64
+	StopPrice    float64
+	ContractID   uint32
+	Text         string
 
-	symbol             string
-	productDescription string
-	priceScale         float64
+	Symbol             string
+	ProductDescription string
+	PriceScale         float64
 }
 type Position struct {
-	quantity           uint32
-	side               string
-	shortBool          bool
-	price              float64
-	contractID         uint32
-	symbol             string
-	productDescription string
-	priceScale         float64
-	tickValue          float64
+	Quantity           uint32
+	Side               string
+	ShortBool          bool
+	Price              float64
+	ContractID         uint32
+	Symbol             string
+	ProductDescription string
+	PriceScale         float64
+	TickValue          float64
 	subPositionMap     map[int32]*OpenPosition
 }
 
 func (position *Position) updatePriceAndQty() {
-	position.quantity = 0
-	position.price = 0
+	position.Quantity = 0
+	position.Price = 0
 	for _, openPosition := range position.subPositionMap {
-		position.quantity += openPosition.GetQty()
-		position.price += openPosition.GetPrice() * float64(openPosition.GetQty())
+		position.Quantity += openPosition.GetQty()
+		position.Price += openPosition.GetPrice() * float64(openPosition.GetQty())
 	}
-	//averaging out the price
-	position.price /= float64(position.quantity)
+	//averaging out the Price
+	position.Price /= float64(position.Quantity)
 
 }
 
@@ -873,9 +893,16 @@ type CollateralInfo struct {
 }
 type NewOrderCancelUpdateStatus struct {
 	ClorderID string
+	OrderID   string
 	Status    string
 	Reason    string
-	channel   chan NewOrderCancelUpdateStatus
+	Side      string
+	Symbol    string
+	Quantity  uint32
+	Price     float64
+	StopPrice float64
+
+	channel chan NewOrderCancelUpdateStatus
 }
 
 type InformationRequestStatus struct {

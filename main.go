@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"os/exec"
+	"strconv"
 )
 
 var err error
@@ -18,7 +19,7 @@ func main() {
 	//Start CQG for this user
 	//Call this function for each user who want to use CQG
 	accountList := []int32{16958204}
-	result := CQG_StartWebApi("VTechapi","pass" ,accountList)
+	result := CQG_StartWebApi("VTechapi", "pass", accountList)
 	if result == -1 {
 		fmt.Println("fail to initiate CQG API for account VTechApi")
 	}
@@ -30,24 +31,54 @@ Loop:
 		}
 		switch action {
 		case "1":
-			fmt.Println("Position :")
-			uir := CQG_GetPosition( 16958204)
-			if uir != nil && uir.Status == "ok"{
+			fmt.Print("Position :")
+			uir := CQG_GetPosition(16958204)
+			if uir != nil && uir.Status == "ok" {
 				for _, po := range uir.PositionList {
-					fmt.Printf("%s %d %s at %f \n", po.side, po.quantity, po.symbol, po.price)
+					fmt.Printf("%s %d %s at %f \n", po.Side, po.Quantity, po.Symbol, po.Price)
 				}
 				fmt.Printf("Your total unrealized P&L is: %f %s\n", uir.CollateralInfo.Upl, uir.CollateralInfo.Currency)
-			} else{
-				fmt.Println("Error getting P&L: ",uir.Reason)
+			} else {
+				fmt.Println("Error getting P&L: ", uir.Reason)
 			}
 
 		case "2":
-			ordStatus := CQG_NewOrderRequest(1, 16958204, "ENQU7", xid.New().String(), 2, 5800, 2, 1, 5, false, makeTimestamp())
-			if (ordStatus.Status == "ok") {
+			scanner := bufio.NewScanner(os.Stdin)
+			fmt.Print("Enter symbol:")
+			scanner.Scan()
+			symbol := scanner.Text()
+
+			fmt.Print("Enter quantity:")
+			scanner.Scan()
+			qty, _ := strconv.ParseInt(scanner.Text(), 10, 64)
+
+			fmt.Print("Enter Side 1 or 2:")
+			scanner.Scan()
+			side, _ := strconv.ParseInt(scanner.Text(), 10, 64)
+
+			fmt.Print("Enter Ordertype:")
+			scanner.Scan()
+			orderType, _ := strconv.ParseInt(scanner.Text(), 10, 64)
+
+			fmt.Print("Enter LimitPrice:")
+			scanner.Scan()
+			limitPrice, _ := strconv.ParseFloat(scanner.Text(), 64)
+
+			fmt.Print("Enter Stop Price:")
+			scanner.Scan()
+			stopPrice, _ := strconv.ParseFloat(scanner.Text(), 64)
+
+			fmt.Print("Enter Duration:")
+			scanner.Scan()
+			duration, _ := strconv.ParseInt(scanner.Text(), 10, 64)
+
+			ordStatus := CQG_NewOrderRequest(1, 16958204, symbol, xid.New().String(), uint32(orderType), limitPrice, stopPrice, uint32(duration), uint32(side), uint32(qty), false, makeTimestamp())
+			if ordStatus.Status == "ok" {
 				fmt.Println("Order Placed Successfully")
-			} else if (ordStatus.Status == "rejected") {
+				fmt.Printf("Your order ID is %s", ordStatus.OrderID)
+			} else if ordStatus.Status == "rejected" {
 				fmt.Printf("Order Rejected \n")
-				if (ordStatus.Reason != "") {
+				if ordStatus.Reason != "" {
 					fmt.Printf("Reason: %s", ordStatus.Reason)
 				}
 			}
@@ -56,37 +87,66 @@ Loop:
 			uir := CQG_GetWorkingOrder(16958204) //return a list of working order
 			if uir != nil && uir.Status == "ok" {
 				for _, wo := range uir.WorkingOrderList {
-					fmt.Printf("%s %d %s at %f \n", wo.side, wo.quantity, wo.symbol, wo.price)
+					fmt.Printf("%s %s %d %s at %f \n", wo.OrderID, wo.Side, wo.Quantity, wo.Symbol, wo.Price)
 				}
-			} else{
+			} else {
 				fmt.Println("Error getting working order")
 			}
 		case "4":
-			fmt.Println("The answer is Tri Do :3")
+			scanner := bufio.NewScanner(os.Stdin)
+			fmt.Print("Enter symbol:")
+			scanner.Scan()
+			symbol := scanner.Text()
+
+			fmt.Print("Enter subscribe status true/false:")
+			scanner.Scan()
+			sub := scanner.Text()
+
+			var subscribe bool
+			if sub == "true"{
+				subscribe = true
+			}else{
+				subscribe = false
+			}
+
+			ifr := CQG_InformationRequest(symbol, 1, "VTechapi", subscribe)
+			if ifr.Status == "ok" {
+				fmt.Println("infomration request sent succesfully")
+			}
 		case "5":
+			scanner := bufio.NewScanner(os.Stdin)
+			fmt.Print("Enter orderId to cancel:")
+			scanner.Scan()
+			orderId := scanner.Text()
+
 			uir := CQG_GetWorkingOrder(16958204) //return a list of working order
 			if uir != nil && len(uir.WorkingOrderList) > 0 && uir.Status == "ok" {
-				wo := uir.WorkingOrderList[0]
-				ordStatus := CQG_CancelOrderRequest(1, wo.orderID, uir.AccountID, wo.clorID, xid.New().String(), makeTimestamp())
-				if ordStatus.Status == "ok" {
-					fmt.Println("Order Cancelled Successfully")
-				} else if ordStatus.Status == "rejected" {
-					fmt.Printf("Order cancel Rejected \n")
-					if ordStatus.Reason != "" {
-						fmt.Printf("Reason: %s", ordStatus.Reason)
+				for _, wo := range uir.WorkingOrderList {
+					if wo.OrderID == orderId {
+						ordStatus := CQG_CancelOrderRequest(1, wo.OrderID, uir.AccountID, wo.ClorID, xid.New().String(), makeTimestamp())
+						if ordStatus.Status == "ok" {
+							fmt.Println("Order Cancelled Successfully")
+						} else if ordStatus.Status == "rejected" {
+							fmt.Printf("Order cancel Rejected \n")
+							if ordStatus.Reason != "" {
+								fmt.Printf("Reason: %s", ordStatus.Reason)
+							}
+						}
+						break
 					}
 				}
+
 			}
 		case "6":
 			uir := CQG_GetWorkingOrder(16958204) //return a list of working order
-			if uir != nil && uir.Status == "ok"{
+			if uir != nil && uir.Status == "ok" {
 				for _, wo := range uir.WorkingOrderList {
-					ordStatus := CQG_CancelOrderRequest(1, wo.orderID, uir.AccountID, wo.clorID, xid.New().String(), makeTimestamp())
-					if (ordStatus.Status == "ok") {
+					ordStatus := CQG_CancelOrderRequest(1, wo.OrderID, uir.AccountID, wo.ClorID, xid.New().String(), makeTimestamp())
+					if ordStatus.Status == "ok" {
 						fmt.Println("Order Cancelled Successfully")
-					} else if (ordStatus.Status == "rejected") {
+					} else if ordStatus.Status == "rejected" {
 						fmt.Printf("Order cancel Rejected \n")
-						if (ordStatus.Reason != "") {
+						if ordStatus.Reason != "" {
 							fmt.Printf("Reason: %s", ordStatus.Reason)
 						}
 					}
@@ -94,28 +154,53 @@ Loop:
 
 			}
 		case "7":
-			uir := CQG_GetWorkingOrder( 16958204) //return a list of working order
+			scanner := bufio.NewScanner(os.Stdin)
+			fmt.Print("Enter orderId to modify:")
+			scanner.Scan()
+			orderId := scanner.Text()
+
+			fmt.Print("Enter new qty or 0:")
+			scanner.Scan()
+			qty, _ := strconv.ParseInt(scanner.Text(), 10, 64)
+
+			fmt.Print("Enter new limit price:")
+			scanner.Scan()
+			limitPrice, _ := strconv.ParseFloat(scanner.Text(), 64)
+
+			fmt.Print("Enter new stop price:")
+			scanner.Scan()
+			stopPrice, _ := strconv.ParseFloat(scanner.Text(), 64)
+
+			uir := CQG_GetWorkingOrder(16958204) //return a list of working order
 			if uir != nil && len(uir.WorkingOrderList) > 0 && uir.Status == "ok" {
-				wo := uir.WorkingOrderList[0]
-				fmt.Println(int32(wo.price / wo.priceScale))
-				fmt.Println(wo.priceScale)
-				ordStatus := CQG_UpdateOrderRequest(1, wo.orderID, uir.AccountID, wo.clorID, xid.New().String(), makeTimestamp(), 17, int32((wo.price-100) / wo.priceScale), 0, wo.timeInForce)
-				if (ordStatus.Status == "ok") {
-					fmt.Println("Order Updated Successfully")
-				} else if (ordStatus.Status == "rejected") {
-					fmt.Printf("Order update Rejected \n")
-					if (ordStatus.Reason != "") {
-						fmt.Printf("Reason: %s", ordStatus.Reason)
+				for _, wo := range uir.WorkingOrderList {
+					if wo.OrderID == orderId {
+						//fmt.Println(int32(wo.Price / wo.PriceScale))
+						//fmt.Println(wo.PriceScale)
+						//change quantity and price , pass 0 or the same if doesnt want to change
+						// remember to divide price to price scale before pass as param
+						ordStatus := CQG_UpdateOrderRequest(1, wo.OrderID, uir.AccountID, wo.ClorID, xid.New().String(), makeTimestamp(), uint32(qty), int32((limitPrice)/wo.PriceScale), int32((stopPrice)/wo.PriceScale), 0)
+						if ordStatus.Status == "ok" {
+							fmt.Println("Order Updated Successfully")
+						} else if (ordStatus.Status == "rejected") {
+							fmt.Printf("Order update Rejected \n")
+							if (ordStatus.Reason != "") {
+								fmt.Printf("Reason: %s", ordStatus.Reason)
+							}
+						}
+
+						break
 					}
 				}
 			}
+
 		case "8":
 			uir := CQG_GetCollateralInfo(16958204)
 			if uir != nil {
 				o := reflect.TypeOf(uir.CollateralInfo)
 				v := reflect.ValueOf(uir.CollateralInfo)
-				for i:=0 ; i< v.NumField(); i++{
-					fmt.Printf("%s :",o.Field(i).Name)
+				for i := 0; i < v.NumField(); i++ {
+					fmt.Printf("%s :", o.Field(i).Name)
 					fmt.Println(v.Field(i))
 				}
 			}
@@ -135,7 +220,7 @@ func QueryAction() (string, error) {
 	fmt.Println("2) Place new Order")
 	fmt.Println("3) Get Working Order")
 	fmt.Println("4) To know who is the most awesome guy to date with")
-	fmt.Println("5) Cancel First working order")
+	fmt.Println("5) Cancel 1 working order")
 	fmt.Println("6) Cancel All working order")
 	fmt.Println("7) Replace First working order")
 	fmt.Println("8) Full Colleteral Status")

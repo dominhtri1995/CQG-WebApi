@@ -22,7 +22,7 @@ func CQG_OrderSubscription(id uint32, subscribe bool, username string) {
 	_,_,_= <- cqgAccountMap.accountMap[username].chanOrderSubscription, <-cqgAccountMap.accountMap[username].chanPositionSubcription , <-cqgAccountMap.accountMap[username].chanCollateralSubscription
 	fmt.Println("Subscription done")
 }
-func NewOrderRequest(id uint32,username string, accountID int32, contractID uint32, clorderID string, orderType uint32, price int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64, c chan NewOrderCancelUpdateStatus) {
+func NewOrderRequest(id uint32,username string, accountID int32, contractID uint32, clorderID string, orderType uint32, limitPrice int32, stopPrice int32, duration uint32, side uint32, qty uint32, is_manual bool, utc int64, c chan NewOrderCancelUpdateStatus) {
 
 	var noq NewOrderCancelUpdateStatus
 	noq.ClorderID = clorderID
@@ -51,10 +51,10 @@ func NewOrderRequest(id uint32,username string, accountID int32, contractID uint
 	}
 
 	if orderType == 2 || orderType ==4 {
-		clientMsg.GetOrderRequest()[0].GetNewOrder().GetOrder().LimitPrice = &price
+		clientMsg.GetOrderRequest()[0].GetNewOrder().GetOrder().LimitPrice = &limitPrice
 	}
 	if  orderType == 3 || orderType == 4 {
-		clientMsg.GetOrderRequest()[0].GetNewOrder().GetOrder().StopPrice = &price
+		clientMsg.GetOrderRequest()[0].GetNewOrder().GetOrder().StopPrice = &stopPrice
 	}
 
 	SendMessage(clientMsg, cqgAccountMap.accountMap[username].connWithLock)
@@ -119,7 +119,7 @@ func UpdateOrderRequest(id uint32, orderID string,username string, accountID int
 	}
 	SendMessage(clientMsg,cqgAccountMap.accountMap[username].connWithLock)
 }
-func CQG_InformationRequest(symbol string, id uint32,username string) InformationRequestStatus{
+func CQG_InformationRequest(symbol string, id uint32,username string, subscribe bool) InformationRequestStatus{
 
 	var ifr InformationRequestStatus
 	ifr.Id =id
@@ -134,6 +134,7 @@ func CQG_InformationRequest(symbol string, id uint32,username string) Informatio
 				SymbolResolutionRequest: &SymbolResolutionRequest{
 					Symbol: &symbol,
 				},
+				Subscribe: &subscribe,
 			},
 		},
 	}
@@ -144,7 +145,7 @@ func CQG_InformationRequest(symbol string, id uint32,username string) Informatio
 		return ifr
 	case <- getTimeOutChan():
 		ifr.Status ="rejected"
-		ifr.Reason ="Unable to obtain symbol from server"
+		ifr.Reason ="Unable to obtain Symbol from server"
 		informationRequestMap.Delete(id)
 	}
 	return ifr
