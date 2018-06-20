@@ -17,6 +17,7 @@ import (
 	"os"
 )
 
+var err error
 var cqgAccountMap = NewCQGAccountMap()
 var accountMux sync.Mutex
 var userMap = NewUserMap()
