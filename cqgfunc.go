@@ -150,6 +150,38 @@ func CQG_InformationRequest(symbol string, id uint32,username string, subscribe 
 	}
 	return ifr
 }
+
+func CQG_InformationRequestForOrder(symbol string, id uint32,username string) InformationRequestStatus{
+
+	var ifr InformationRequestStatus
+	ifr.Id =id
+	ifr.Username = username
+	ifr.Status = "ok"
+	ifr.channel = make (chan InformationRequestStatus)
+	informationRequestMap.Store(id,ifr)
+
+	clientMsg := &ClientMsg{
+		InformationRequest: []*InformationRequest{
+			{Id: &id,
+				SymbolResolutionRequest: &SymbolResolutionRequest{
+					Symbol: &symbol,
+				},
+			},
+		},
+	}
+	SendMessage(clientMsg, cqgAccountMap.accountMap[username].connWithLock)
+	select {
+	case ifr = <-ifr.channel:
+		informationRequestMap.Delete(id)
+		return ifr
+	case <- getTimeOutChan():
+		ifr.Status ="rejected"
+		ifr.Reason ="Unable to obtain Symbol from server"
+		informationRequestMap.Delete(id)
+	}
+	return ifr
+}
+
 func CQG_SendLogonMessage(username string, password string, clientAppID string, clientVersion string) *ServerMsg {
 	LogonMessage := &ClientMsg{
 		Logon: &Logon{UserName: &username,
@@ -162,6 +194,7 @@ func CQG_SendLogonMessage(username string, password string, clientAppID string, 
 	msg := <- cqgAccountMap.accountMap[username].chanLogon
 	return msg
 }
+
 func CQG_SendLogoffMessage(reason string,username string){
 	LogoffMessage := &ClientMsg{
 		Logoff: &Logoff{

@@ -95,7 +95,7 @@ func CQG_NewOrderRequest(id uint32, accountID int32, symbol string, clorderID st
 		return
 	}
 
-	ifr := CQG_InformationRequest(symbol, 1, "VTechapi",true)
+	ifr := CQG_InformationRequestForOrder(symbol, 1, "VTechapi")
 
 	if ifr.Status == "ok" {
 		var c = make(chan NewOrderCancelUpdateStatus)
@@ -294,7 +294,7 @@ Loop:
 								ifr.Reason = inforeport.GetTextMessage()
 								ifr.channel <- ifr
 							case InformationReport_NOT_FOUND.String():
-								ifr.Status = "rejected"
+								ifr.Status = "Information not found"
 								ifr.Reason = inforeport.GetTextMessage()
 								ifr.channel <- ifr
 							case InformationReport_REQUEST_LIMIT_VIOLATION.String():
